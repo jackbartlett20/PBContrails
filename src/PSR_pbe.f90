@@ -7,7 +7,6 @@ subroutine psr_pbe()
 ! Perfectly stirred reactor for the homogeneous PBE
 ! Stelios Rigopoulos (06/05/2017)
 ! Modified 25/06/2020
-! Modified 21/05/2025 by Jack Bartlett to add pbe_output_many
 !
 !**********************************************************************************************
 
@@ -58,6 +57,11 @@ call PBE_moments(ni,moment,meansize)
 
 do i_step = 1,n_steps
 
+  current_time = current_time + dt
+
+  ! Update temperature and vapour pressure
+  call pbe_set_environment(current_time)
+
   ! The following should be done if the kernel should be updated at each time step due to e.g. 
   ! temperature dependency
   if (agg_kernel_update==1) then
@@ -71,9 +75,6 @@ do i_step = 1,n_steps
 
   ! Calculate moments
   call pbe_moments(ni,moment,meansize)
-
-  ! Write moments
-  current_time = current_time + dt
 
   ! Write PSD
   if ((i_write==n_write).or.(i_step==n_steps)) then

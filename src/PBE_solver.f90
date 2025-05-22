@@ -111,7 +111,7 @@ niprime = 0.
 params(1) = 0.
 
 !Nucleation
-if (max_nuc>0) then
+if (nucleation_function==1) then
 ! Note: expressions for i_gm==0 and i_gm==1 are equivalent but written separately for clarity
   if (i_gm==0) then
     do index = 1,max_nuc
@@ -122,6 +122,17 @@ if (max_nuc>0) then
       niprime(index) = nuc(index)*v_m(index)/(0.5*(v(index)**2-v(index-1)**2))
     end do
   end if
+else if (nucleation_function==2) then
+  if (Pvap>Psat_l) then
+    ! write "nucleation"?
+    nuc(1) = n_soot ! all soot particles replaced with water droplets - BE CAREFUL: n_soot is m-3 and nuc is m-3 s-1
+    n_soot = 0
+  end if
+  do index = 1,m
+    niprime(index) = nuc(index)
+    nuc(index) = 0 ! reset nucleation
+    ! Decrease vapour pressure? Pvap = Pvap - 
+  end do
 end if
 
 !Growth

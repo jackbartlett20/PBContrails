@@ -43,14 +43,24 @@ double precision break_const
 double precision g_coeff1,g_coeff2
 double precision nuc1
 double precision N0
+double precision temperature,T_exhaust,T_ambient
+double precision k_cooling
+double precision Pvap,Pvap_exhaust,Pvap_ambient
+double precision Psat_l,Psat_i
+double precision n_soot,soot_size
 
 integer m,grid_type
 integer i_gm,solver_pbe
 integer initdis,n_th1,n_th2
 integer agg_kernel
+integer nucleation_function
 integer growth_function
 integer max_nuc
 integer order_of_gq
+
+! Physical constants
+real, parameter :: ideal_gas_constant = 8.314 ! J mol-1 K-1
+real, parameter :: water_molar_mass = 0.018015 ! kg mol-1
 
 end module pbe_mod
 
@@ -176,8 +186,16 @@ do i=1,2
 end do
 read(30,*) agg_kernel
 read(30,*) agg_kernel_const
+read(30,*) nucleation_function
 read(30,*) max_nuc
 read(30,*) nuc1
+read(30,*) T_exhaust
+read(30,*) T_ambient
+read(30,*) k_cooling
+read(30,*) Pvap_exhaust
+read(30,*) Pvap_ambient
+read(30,*) n_soot
+read(30,*) soot_size
 read(30,*) growth_function
 read(30,*) g_coeff1
 read(30,*) g_coeff2
@@ -237,10 +255,17 @@ integer i
 
 !----------------------------------------------------------------------------------------------
 
+! Initialise temperature and vapour pressure
+call pbe_set_environment(0.D0)
+
 ! Initialise nucleation
-if (max_nuc>0) then
+if (nucleation_function==0) then
+  nuc = 0.D0
+else if (nucleation_function==1) then
   nuc = 0.D0
   nuc(1:max_nuc) = nuc1
+else if (nucleation_function==2) then
+  nuc = 0.D0 ! nucleation is determined during first time step
 end if
 
 ! Initialise aggregation
@@ -320,7 +345,7 @@ if (grid_type==1) then
     write(*,*) "Right grid boundary must be greater than zero for geometric grid"
     stop
   end if
-  alpha = exp(1./m * log(grid_rb/grid_lb)) ! Calculates geometric ratio
+  alpha = exp(1.D0/m * log(grid_rb/grid_lb)) ! Calculates geometric ratio
   v(0) = grid_lb
   do i=1,m
     v(i) = v(i-1) * alpha
@@ -622,7 +647,8 @@ filename = "pbe/out/psd" // TRIM(n_files_str) // ".out"
 open(99,file=filename)
 do i=1,m
   write(99,1001) v_m(i),(6.D0/3.14159*v_m(i))**(1.D0/3.D0),nitemp(i), &
-  & nitemp(i)*dv(i)/moment(0),v_m(i)*nitemp(i),v_m(i)*nitemp(i)*dv(i)/moment(1)
+  & nitemp(i)*dv(i)/moment(0),v_m(i)*nitemp(i),v_m(i)*nitemp(i)*dv(i)/moment(1), &
+  & temperature, Pvap, Psat_l, Psat_i
 end do
 close(99)
 
@@ -635,10 +661,45 @@ if (i_writesp==1) then
   end do
 end if
 
-1001 format(6E20.10)
+1001 format(10E20.10)
 1002 format(2E20.10)
 
 end subroutine pbe_output_many
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_set_environment(current_time)
+
+!**********************************************************************************************
+!
+! Set (or update) environment vairables (temperature and pressure)
+!
+! By Jack Bartlett (22/05/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in) :: current_time
+
+!----------------------------------------------------------------------------------------------
+
+temperature = T_ambient + (T_exhaust - T_ambient) * exp(-k_cooling*current_time)
+Pvap = Pvap_ambient + (Pvap_exhaust - Pvap_ambient) * exp(-k_cooling*current_time)
+Psat_l = 6.108E2*exp(17.27 * (temperature - 273.15)/(temperature - 35.86))
+Psat_i = 6.108E2*exp(21.87 * (temperature - 273.15)/(temperature - 7.66))
+
+!write(*,*) 'Temperature: ',temperature
+!write(*,*) 'Pvap: ',Pvap
+!write(*,*) 'Psat_l: ',Psat_l
+
+end subroutine pbe_set_environment
 
 !**********************************************************************************************
 
