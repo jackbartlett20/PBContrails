@@ -12,8 +12,8 @@ PBE INPUT DATA
 3                               ! Order of Gaussian quadrature (for fragmentation) -> order_of_gq
 1                               ! Grid type -> grid_type
 1000                            ! Number of grid points -> m
-0.001                               ! Minimum size in grid (must be >0 for geometric grid) -> grid_lb
-1                               ! Maximum size in grid -> grid_rb
+1E-9                               ! Minimum size in grid (must be >0 for geometric grid) -> grid_lb
+1E-6                               ! Maximum size in grid -> grid_rb
 0.1                              ! Volume of nuclei -> v0
 1                               ! Initial distribution -> initdis
 900                             ! First non-zero interval for top-hat distribution -> n_th1
