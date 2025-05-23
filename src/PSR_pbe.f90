@@ -71,7 +71,7 @@ do i_step = 1,n_steps
   end if
 
   ! Integrate
-    call pbe_integ(ni,dt)
+  call pbe_integ(ni,dt)
 
   ! Calculate moments
   call pbe_moments(ni,moment,meansize)

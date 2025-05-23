@@ -481,6 +481,41 @@ end subroutine inc_ratio
 
 !**********************************************************************************************
 
+subroutine pbe_set_environment(current_time)
+
+!**********************************************************************************************
+!
+! Set (or update) environment vairables (temperature and pressure)
+!
+! By Jack Bartlett (22/05/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in) :: current_time
+
+!----------------------------------------------------------------------------------------------
+
+temperature = T_ambient + (T_exhaust - T_ambient) * exp(-k_cooling*current_time)
+Pvap = Pvap_ambient + (Pvap_exhaust - Pvap_ambient) * exp(-k_cooling*current_time)
+Psat_l = 6.108E2*exp(17.27 * (temperature - 273.15)/(temperature - 35.86))
+Psat_i = 6.108E2*exp(21.87 * (temperature - 273.15)/(temperature - 7.66))
+
+!write(*,*) 'Temperature: ',temperature
+!write(*,*) 'Pvap: ',Pvap
+!write(*,*) 'Psat_l: ',Psat_l
+
+end subroutine pbe_set_environment
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
 subroutine pbe_moments(ni,moment,meansize)
 
 !**********************************************************************************************
@@ -643,13 +678,21 @@ do i=1,m
 end do
 
 write(n_files_str, '(I0)') n_files ! Convert n_files integer to string for filename
-filename = "pbe/out/psd" // TRIM(n_files_str) // ".out"
+filename = "pbe/out/psd" // trim(n_files_str) // ".out"
 open(99,file=filename)
 do i=1,m
   write(99,1001) v_m(i),(6.D0/3.14159*v_m(i))**(1.D0/3.D0),nitemp(i), &
-  & nitemp(i)*dv(i)/moment(0),v_m(i)*nitemp(i),v_m(i)*nitemp(i)*dv(i)/moment(1), &
-  & temperature, Pvap, Psat_l, Psat_i
+  & nitemp(i)*dv(i)/moment(0),v_m(i)*nitemp(i),v_m(i)*nitemp(i)*dv(i)/moment(1)
 end do
+close(99)
+
+! Write environment variables to end of environment_variables.out
+if (n_files==0) then
+  open(99,file='pbe/out/environment_variables.out',status='replace')
+else
+  open(99,file='pbe/out/environment_variables.out',status='old',position='append')
+end if
+write(99,1003) temperature, Pvap, Psat_l, Psat_i
 close(99)
 
 if (i_writesp==1) then
@@ -661,45 +704,11 @@ if (i_writesp==1) then
   end do
 end if
 
-1001 format(10E20.10)
+1001 format(6E20.10)
 1002 format(2E20.10)
+1003 format(4E20.10)
 
 end subroutine pbe_output_many
-
-!**********************************************************************************************
-
-
-
-!**********************************************************************************************
-
-subroutine pbe_set_environment(current_time)
-
-!**********************************************************************************************
-!
-! Set (or update) environment vairables (temperature and pressure)
-!
-! By Jack Bartlett (22/05/2025)
-!
-!**********************************************************************************************
-
-use pbe_mod
-
-implicit none
-
-double precision, intent(in) :: current_time
-
-!----------------------------------------------------------------------------------------------
-
-temperature = T_ambient + (T_exhaust - T_ambient) * exp(-k_cooling*current_time)
-Pvap = Pvap_ambient + (Pvap_exhaust - Pvap_ambient) * exp(-k_cooling*current_time)
-Psat_l = 6.108E2*exp(17.27 * (temperature - 273.15)/(temperature - 35.86))
-Psat_i = 6.108E2*exp(21.87 * (temperature - 273.15)/(temperature - 7.66))
-
-!write(*,*) 'Temperature: ',temperature
-!write(*,*) 'Pvap: ',Pvap
-!write(*,*) 'Psat_l: ',Psat_l
-
-end subroutine pbe_set_environment
 
 !**********************************************************************************************
 
