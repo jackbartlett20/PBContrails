@@ -115,7 +115,7 @@ if (nucleation_function==1) then
 ! Note: expressions for i_gm==0 and i_gm==1 are equivalent but written separately for clarity
   if (i_gm==0) then
     do index = 1,max_nuc
-      niprime(index) = nuc(index)/dv(index)
+      niprime(index) = nuc(index)/dv(index) ! per physical volume per time scaled by interval size to match units of ni
     end do
   else if (i_gm==1) then
     do index = 1,max_nuc
@@ -124,6 +124,8 @@ if (nucleation_function==1) then
   end if
 else if (nucleation_function==2) then
   if (Pvap>Psat_l) then
+    ! Soot activation
+    
     ! write "nucleation"?
     nuc(1) = n_soot ! all soot particles replaced with water droplets - BE CAREFUL: n_soot is m-3 and nuc is m-3 s-1
     n_soot = 0

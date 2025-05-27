@@ -36,6 +36,7 @@ double precision, allocatable, dimension(:) :: v
 double precision, allocatable, dimension(:) :: dv
 double precision, allocatable, dimension(:) :: v_m
 double precision, allocatable, dimension(:) :: nuc
+double precision, allocatable, dimension(:) :: ni_soot
 
 double precision v0,grid_lb,grid_rb
 double precision agg_kernel_const
@@ -47,7 +48,7 @@ double precision temperature,T_exhaust,T_ambient
 double precision k_cooling
 double precision Pvap,Pvap_exhaust,Pvap_ambient
 double precision Psat_l,Psat_i
-double precision n_soot,soot_size
+double precision n_soot,r_mean_soot,sigma_soot
 
 integer m,grid_type
 integer i_gm,solver_pbe
@@ -195,7 +196,8 @@ read(30,*) k_cooling
 read(30,*) Pvap_exhaust
 read(30,*) Pvap_ambient
 read(30,*) n_soot
-read(30,*) soot_size
+read(30,*) r_mean_soot
+read(30,*) sigma_soot
 read(30,*) growth_function
 read(30,*) g_coeff1
 read(30,*) g_coeff2
@@ -250,6 +252,8 @@ implicit none
 
 double precision, dimension(m), intent(inout) :: ni
 
+double precision r_m
+
 
 integer i
 
@@ -265,7 +269,14 @@ else if (nucleation_function==1) then
   nuc = 0.D0
   nuc(1:max_nuc) = nuc1
 else if (nucleation_function==2) then
-  nuc = 0.D0 ! nucleation is determined during first time step
+  ! Initialise soot
+  do i=1,m
+    r_m = ((3.D0*v_m(i))/(4.D0*3.14159D0))**(1.D0/3.D0) ! convert volume to radius
+    ni_soot(i) = (1.D0/dv(i)) * n_soot * (1.D0/(sqrt(2.D0*3.14159D0)*sigma_soot)) * &
+    & exp(-(log(r_m/r_mean_soot))**2.D0/(2.D0*sigma_soot**2.D0))
+    ! scaling to per interval width * total number density * log-normal distribution
+  end do
+  nuc = 0.D0
 end if
 
 ! Initialise aggregation
@@ -336,13 +347,13 @@ integer i
 !----------------------------------------------------------------------------------------------
 
 ! Allocate arrays
-allocate(v(0:m),dv(m),v_m(m),nuc(m))
+allocate(v(0:m),dv(m),v_m(m),nuc(m),ni_soot(m))
 
 if (grid_type==1) then
 
   !Option 1: geometric grid
   if (grid_lb==0) then
-    write(*,*) "Right grid boundary must be greater than zero for geometric grid"
+    write(*,*) "Left grid boundary must be greater than zero for geometric grid"
     stop
   end if
   alpha = exp(1.D0/m * log(grid_rb/grid_lb)) ! Calculates geometric ratio
@@ -704,9 +715,16 @@ if (i_writesp==1) then
   end do
 end if
 
+open(99,file='soot.out')
+do i=1,m
+  write(99,1004) v_m(i), ni_soot(i)
+end do
+close(99)
+
 1001 format(6E20.10)
 1002 format(2E20.10)
 1003 format(4E20.10)
+1004 format(2E20.10)
 
 end subroutine pbe_output_many
 
@@ -730,7 +748,7 @@ subroutine pbe_deallocate()
 
 use pbe_mod
  
-deallocate(v,dv,v_m,nuc)
+deallocate(v,dv,v_m,nuc,ni_soot)
 
 end subroutine pbe_deallocate
 

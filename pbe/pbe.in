@@ -2,16 +2,17 @@ PBE INPUT DATA
 
 0                               ! Aggregation kernel -> agg_kernel
 1.                              ! Aggregation kernel constant -> agg_kernel_const
-0                               ! Nucleation model -> nucleation_function
+2                               ! Nucleation model -> nucleation_function
 1000                            ! Nucleation range for constant nucleation -> max_nuc
 1.                              ! Nucleation rate for constant nucleation -> nuc1
 873.                            ! Exhaust temperature for contrail nucleation (K) -> T_exhaust
 215.                            ! Ambient temperature for contrail nucleation (K) -> T_ambient
 1.                              ! Cooling constant for contrail nucleation (s-1) -> k_cooling
-4000.                            ! Vapour pressure in exhaust for contrail nucleation (Pa) -> Pvap_exhaust
+400.                            ! Vapour pressure in exhaust for contrail nucleation (Pa) -> Pvap_exhaust
 0.67                            ! Ambient vapour pressure for contrail nucleation (Pa) -> Pvap_ambient
-1.E12                           ! Soot particle concentration in exhaust (m-3) -> n_soot
-4.1E-24                         ! Soot particle size (m3) -> soot_size
+8.E11                           ! Soot particle concentration in exhaust (m-3) -> n_soot
+20.E-9                          ! Mean soot particle radius (m) -> r_mean_soot
+1.823E-1                          ! Standard deviation of soot particle radius in log-space (1.2 nm -> 0.182) -> sigma_soot
 0                               ! Growth model -> growth_function
 1                               ! Growth rate -> g_coeff1
 1.                              ! Growth exponent (for power-law model) -> g_coeff2
@@ -19,9 +20,9 @@ PBE INPUT DATA
 0.                              ! Fragmentation rate constant -> break_const
 3                               ! Order of Gaussian quadrature (for fragmentation) -> order_of_gq
 1                               ! Grid type -> grid_type
-10                            ! Number of grid points -> m
-4.1E-24                         ! Minimum size in grid (m3) (must be >0 for geometric grid) -> grid_lb
-4.1E-23                         ! Maximum size in grid (m3) -> grid_rb
+100                            ! Number of grid points -> m
+4.E-24                         ! Minimum size in grid (m3) (must be >0 for geometric grid) -> grid_lb
+4.E-21                         ! Maximum size in grid (m3) -> grid_rb
 1.                              ! Volume of nuclei -> v0 (obsolete)
 1                               ! Initial distribution -> initdis
 900                             ! First non-zero interval for top-hat distribution -> n_th1
@@ -40,7 +41,7 @@ Aggregation kernels:
 
 Nucleation models:
 0. No nucleation
-1. "Constant" nucleation (previous default)
+1. Constant nucleation (previous default)
 2. Contrail nucleation
 
 Growth models:
