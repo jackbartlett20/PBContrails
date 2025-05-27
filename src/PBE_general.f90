@@ -59,16 +59,26 @@ integer growth_function
 integer max_nuc
 integer order_of_gq
 
+! Double precision kind
+integer, parameter :: dp = selected_real_kind(15, 307)
+
+! Mathematical constants
+real(kind=dp), parameter :: pi = 3.141592654D0
+
 ! Physical constants
-real*8, parameter :: ideal_gas_constant = 8.314 ! J mol-1 K-1
-real*8, parameter :: water_molar_mass = 0.018015 ! kg mol-1
+real(kind=dp), parameter :: ideal_gas_constant = 8.314 ! J mol-1 K-1
+real(kind=dp), parameter :: water_molar_mass = 0.018015 ! kg mol-1
 
 ! Plume diffusion constants
-real*8, parameter :: eps_diffusivity = 0.0285D0 ! turbulent diffusivity ()
-real*8, parameter :: r_0 = 0.5D0 ! jet radius at exhaust (m)
-real*8, parameter :: x_m = r_0 * sqrt(2.D0/eps_diffusivity) ! unentrained length (m)
-real*8, parameter :: u_0 = 4.D2 ! exhaust velocity (m/s)
-real*8, parameter :: tau_m = x_m / u_0 ! mixing timescale (s)
+real(kind=dp), parameter :: eps_diffusivity = 0.0285D0 ! turbulent diffusivity ()
+real(kind=dp), parameter :: r_0 = 0.5D0 ! jet radius at exhaust (m)
+real(kind=dp), parameter :: x_m = r_0 * sqrt(2.D0/eps_diffusivity) ! unentrained length (m)
+real(kind=dp), parameter :: u_0 = 4.D2 ! exhaust velocity (m/s)
+real(kind=dp), parameter :: tau_m = x_m / u_0 ! mixing timescale (s)
+
+! Soot activation constants
+real(kind=dp), parameter :: r_k = 1.D-9 ! Approx Kelvin radius for dry particle activation (m)
+real(kind=dp), parameter :: soot_solubility = 0.1D0 ! Solubility parameter for soot, a guess ()
 
 end module pbe_mod
 
@@ -278,8 +288,8 @@ else if (nucleation_function==1) then
 else if (nucleation_function==2) then
   ! Initialise soot
   do i=1,m
-    r_m = ((3.D0*v_m(i))/(4.D0*3.14159D0))**(1.D0/3.D0) ! convert volume to radius
-    ni_soot(i) = (1.D0/dv(i)) * n_soot * (1.D0/(sqrt(2.D0*3.14159D0)*sigma_soot)) * &
+    r_m = ((3.D0*v_m(i))/(4.D0*pi))**(1.D0/3.D0) ! convert volume to radius
+    ni_soot(i) = (1.D0/dv(i)) * n_soot * (1.D0/(sqrt(2.D0*pi)*sigma_soot)) * &
     & exp(-(log(r_m/r_mean_soot))**2.D0/(2.D0*sigma_soot**2.D0))
     ! scaling to per interval width * total number density * log-normal distribution
   end do
@@ -635,7 +645,7 @@ do i=1,m
 end do
 open(99,file='pbe/out/psd.out')
 do i=1,m
-  write(99,1001) v_m(i),(6.D0/3.14159*v_m(i))**(1.D0/3.D0),nitemp(i), &
+  write(99,1001) v_m(i),(6.D0/pi*v_m(i))**(1.D0/3.D0),nitemp(i), &
   & nitemp(i)*dv(i)/moment(0),v_m(i)*nitemp(i),v_m(i)*nitemp(i)*dv(i)/moment(1)
 end do
 close(99)
@@ -703,7 +713,7 @@ write(n_files_str, '(I0)') n_files ! Convert n_files integer to string for filen
 filename = "pbe/out/psd" // trim(n_files_str) // ".out"
 open(99,file=filename)
 do i=1,m
-  write(99,1001) v_m(i),(6.D0/3.14159*v_m(i))**(1.D0/3.D0),nitemp(i), &
+  write(99,1001) v_m(i),(6.D0/pi*v_m(i))**(1.D0/3.D0),nitemp(i), &
   & nitemp(i)*dv(i)/moment(0),v_m(i)*nitemp(i),v_m(i)*nitemp(i)*dv(i)/moment(1)
 end do
 close(99)

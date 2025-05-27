@@ -9,7 +9,7 @@ PBE INPUT DATA
 215.                            ! Ambient temperature for contrail nucleation (K) -> T_ambient
 1.                              ! Cooling constant for contrail nucleation (s-1) -> k_cooling
 400.                            ! Vapour pressure in exhaust for contrail nucleation (Pa) -> Pvap_exhaust
-0.67                            ! Ambient vapour pressure for contrail nucleation (Pa) -> Pvap_ambient
+6.7                             ! Ambient vapour pressure for contrail nucleation (Pa) -> Pvap_ambient
 8.E11                           ! Soot particle concentration in exhaust (m-3) -> n_soot
 20.E-9                          ! Mean soot particle radius (m) -> r_mean_soot
 1.823E-1                          ! Standard deviation of soot particle radius in log-space (1.2 nm -> 0.182) -> sigma_soot
