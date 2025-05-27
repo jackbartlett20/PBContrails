@@ -42,10 +42,8 @@ double precision v0,grid_lb,grid_rb
 double precision agg_kernel_const
 double precision break_const
 double precision g_coeff1,g_coeff2
-double precision nuc1
 double precision N0
 double precision temperature,T_exhaust,T_ambient
-double precision k_cooling
 double precision Pvap,Pvap_exhaust,Pvap_ambient
 double precision Psat_l,Psat_i
 double precision n_soot,r_mean_soot,sigma_soot
@@ -54,9 +52,7 @@ integer m,grid_type
 integer i_gm,solver_pbe
 integer initdis,n_th1,n_th2
 integer agg_kernel
-integer nucleation_function
 integer growth_function
-integer max_nuc
 integer order_of_gq
 
 ! Double precision kind
@@ -204,12 +200,8 @@ do i=1,2
 end do
 read(30,*) agg_kernel
 read(30,*) agg_kernel_const
-read(30,*) nucleation_function
-read(30,*) max_nuc
-read(30,*) nuc1
 read(30,*) T_exhaust
 read(30,*) T_ambient
-read(30,*) k_cooling
 read(30,*) Pvap_exhaust
 read(30,*) Pvap_ambient
 read(30,*) n_soot
@@ -279,22 +271,16 @@ integer i
 ! Initialise temperature and vapour pressure
 call pbe_set_environment(0.D0)
 
+! Initialise soot
+do i=1,m
+  r_m = ((3.D0*v_m(i))/(4.D0*pi))**(1.D0/3.D0) ! convert volume to radius
+  ni_soot(i) = (1.D0/dv(i)) * n_soot * (1.D0/(sqrt(2.D0*pi)*sigma_soot)) * &
+  & exp(-(log(r_m/r_mean_soot))**2.D0/(2.D0*sigma_soot**2.D0))
+  ! scaling to per interval width * total number density * log-normal distribution
+end do
+
 ! Initialise nucleation
-if (nucleation_function==0) then
-  nuc = 0.D0
-else if (nucleation_function==1) then
-  nuc = 0.D0
-  nuc(1:max_nuc) = nuc1
-else if (nucleation_function==2) then
-  ! Initialise soot
-  do i=1,m
-    r_m = ((3.D0*v_m(i))/(4.D0*pi))**(1.D0/3.D0) ! convert volume to radius
-    ni_soot(i) = (1.D0/dv(i)) * n_soot * (1.D0/(sqrt(2.D0*pi)*sigma_soot)) * &
-    & exp(-(log(r_m/r_mean_soot))**2.D0/(2.D0*sigma_soot**2.D0))
-    ! scaling to per interval width * total number density * log-normal distribution
-  end do
-  nuc = 0.D0
-end if
+nuc = 0.D0
 
 ! Initialise aggregation
 if (agg_kernel>0) then

@@ -18,8 +18,7 @@ FLAGS = -O3 -ffree-line-length-none -cpp
 # Code
 MODPBE = PBE_general.o PBE_discrete.o
 MAIN = CPMOD_pbe.o
-PBE = PBE_solver.o PBE_growth.o PBE_agg.o PBE_agg_kernels.o \
-PBE_test.o PBE_frag.o
+PBE = PBE_solver.o PBE_growth.o PBE_agg.o PBE_agg_kernels.o PBE_frag.o
 PSR = PSR_pbe.o
 
 # Compilation order

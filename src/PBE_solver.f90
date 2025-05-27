@@ -112,35 +112,24 @@ integer index
 niprime = 0. ! d(ni)/dt
 params(1) = 0.
 
-!Nucleation
-if (nucleation_function==1) then
-! Note: expressions for i_gm==0 and i_gm==1 are equivalent but written separately for clarity
-  if (i_gm==0) then
-    do index = 1,max_nuc
-      niprime(index) = nuc(index)/dv(index) ! per physical volume per time scaled by interval size to match units of ni
-    end do
-  else if (i_gm==1) then
-    do index = 1,max_nuc
-      niprime(index) = nuc(index)*v_m(index)/(0.5*(v(index)**2-v(index-1)**2))
-    end do
-  end if
-else if (nucleation_function==2) then
-  ! Soot activation
-  if (Pvap>Psat_l) then
-    ! Calculate minimum soot radius to have activated
-    sat_ratio_l = Pvap/Psat_l
-    r_act = r_k / (54.D0*soot_solubility*(log(sat_ratio_l))**2)**(1.D0/3.D0)
-    ! Convert radius to volume
-    v_act = 4.D0/3.D0 * pi * r_act**3.D0
-    ! Move ni_soot to ni for all volumes larger than critical
-    do index=1,m
-      if (v_m(index) > v_act) then
-        ni(index) = ni(index) + ni_soot(index)
-        ni_soot(index) = 0.D0
-      end if
-    end do
-  end if
+! Soot activation
+if (Pvap>Psat_l) then
+  ! Calculate minimum soot radius to have activated
+  sat_ratio_l = Pvap/Psat_l
+  r_act = r_k / (54.D0*soot_solubility*(log(sat_ratio_l))**2)**(1.D0/3.D0)
+  ! Convert radius to volume
+  v_act = 4.D0/3.D0 * pi * r_act**3.D0
+  ! Move ni_soot to ni for all volumes larger than critical
+  do index=1,m
+    if (v_m(index) > v_act) then
+      ni(index) = ni(index) + ni_soot(index)
+      ni_soot(index) = 0.D0
+    end if
+  end do
 end if
+
+! Nucleation
+
 
 !Growth
 if (growth_function>0) then
