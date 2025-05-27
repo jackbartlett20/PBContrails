@@ -70,6 +70,9 @@ do i_step = 1,n_steps
     call PBE_agg_beta(2)
   end if
 
+  ! Update soot activation
+  call pbe_activation(ni)
+
   ! Integrate
   call pbe_integ(ni,dt)
 

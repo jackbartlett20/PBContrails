@@ -96,14 +96,12 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m), intent(inout)  :: ni
+double precision, dimension(m), intent(in)  :: ni
 double precision, dimension(m), intent(out)    :: niprime
 
 double precision dn(m)
 
 double precision growth_source,growth_mass_source,params(1)
-
-double precision r_act, v_act, sat_ratio_l
 
 integer index
 
@@ -112,24 +110,8 @@ integer index
 niprime = 0. ! d(ni)/dt
 params(1) = 0.
 
-! Soot activation
-if (Pvap>Psat_l) then
-  ! Calculate minimum soot radius to have activated
-  sat_ratio_l = Pvap/Psat_l
-  r_act = r_k / (54.D0*soot_solubility*(log(sat_ratio_l))**2)**(1.D0/3.D0)
-  ! Convert radius to volume
-  v_act = 4.D0/3.D0 * pi * r_act**3.D0
-  ! Move ni_soot to ni for all volumes larger than critical
-  do index=1,m
-    if (v_m(index) > v_act) then
-      ni(index) = ni(index) + ni_soot(index)
-      ni_soot(index) = 0.D0
-    end if
-  end do
-end if
-
 ! Nucleation
-
+! Add homogeneous nucleation at high supersaturation? Otherwise none
 
 !Growth
 if (growth_function>0) then

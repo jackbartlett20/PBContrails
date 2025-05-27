@@ -15,8 +15,6 @@ program CPMOD_pbe
 
 implicit none
 
-integer :: i,problem
-
 double precision :: time1,time2,time
 
 !**********************************************************************************************
