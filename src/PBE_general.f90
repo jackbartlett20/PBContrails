@@ -44,6 +44,7 @@ double precision break_const
 double precision g_coeff1,g_coeff2
 double precision N0
 double precision temperature,T_exhaust,T_ambient
+double precision P_ambient
 double precision Pvap,Pvap_exhaust,Pvap_ambient
 double precision Psat_l,Psat_i
 double precision n_soot,r_mean_soot,sigma_soot
@@ -62,8 +63,12 @@ integer, parameter :: dp = selected_real_kind(15, 307)
 real(kind=dp), parameter :: pi = 3.141592654D0
 
 ! Physical constants
-real(kind=dp), parameter :: ideal_gas_constant = 8.314 ! J mol-1 K-1
-real(kind=dp), parameter :: water_molar_mass = 0.018015 ! kg mol-1
+real(kind=dp), parameter :: ideal_gas_constant = 8.314D0 ! (J mol-1 K-1)
+real(kind=dp), parameter :: boltzmann_constant = 1.380649D-23 ! (J K-1)
+real(kind=dp), parameter :: water_molar_mass = 0.018015D0 ! (kg mol-1)
+real(kind=dp), parameter :: avogadro_constant = 6.02214D23 ! (mol-1)
+real(kind=dp), parameter :: water_molecular_vol = 2.97D-29 ! (m3)
+real(kind=dp), parameter :: water_molecular_mass = 2.99D-26 ! (kg)
 
 ! Plume diffusion constants
 real(kind=dp), parameter :: eps_diffusivity = 0.0285D0 ! turbulent diffusivity ()
@@ -202,6 +207,7 @@ read(30,*) agg_kernel
 read(30,*) agg_kernel_const
 read(30,*) T_exhaust
 read(30,*) T_ambient
+read(30,*) P_ambient
 read(30,*) Pvap_exhaust
 read(30,*) Pvap_ambient
 read(30,*) n_soot

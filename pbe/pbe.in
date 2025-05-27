@@ -4,6 +4,7 @@ PBE INPUT DATA
 1.                              ! Aggregation kernel constant -> agg_kernel_const
 873.                            ! Exhaust temperature (K) -> T_exhaust
 215.                            ! Ambient temperature (K) -> T_ambient
+2.E4                            ! Air pressure (Pa) -> P_ambient
 400.                            ! Vapour pressure in exhaust (Pa) -> Pvap_exhaust
 6.7                             ! Ambient vapour pressure (Pa) -> Pvap_ambient
 8.E11                           ! Soot particle concentration in exhaust (m-3) -> n_soot

@@ -8,7 +8,7 @@
 
 !**********************************************************************************************
 
-subroutine growth_tvd(ni,index,growth_source)
+subroutine growth_tvd(ni,index,n_sat,supersaturation_l,thermal_speed,diff_coeff,growth_source)
 
 !**********************************************************************************************
 !
@@ -25,9 +25,10 @@ implicit none
 
 double precision, dimension(m), intent(in) :: ni
 integer, intent(in)                        :: index
+double precision, intent(in)               :: n_sat,supersaturation_l,thermal_speed,diff_coeff
 double precision, intent(out)              :: growth_source
 
-double precision :: G_terml,G_termr,phi
+double precision :: g_terml,g_termr,phi
 double precision :: gnl,gnr           !< (G*N) at left surface and right surface
 double precision :: nl                !< Number density in left cell
 double precision :: nll               !< Number density in left-left cell
@@ -43,19 +44,22 @@ parameter(eps = 1.D1*epsilon(1.D0))
 
 !Only growth to the right present at nucleation interval
 
-if (growth_function==1) then
+!calc_growth_rate(index, n_sat, supersaturation_l, thermal_speed, diff_coeff, g_termr)
+!calc_growth_rate(index-1, n_sat, supersaturation_l, thermal_speed, diff_coeff, g_terml)
 
-  !Size-independent growth
-  g_termr = g_coeff1
-  g_terml = g_coeff1
-
-else if (growth_function==2) then
-
-  !Power-law growth
-  g_termr = g_coeff1*(v(index)**g_coeff2)
-  g_terml = g_coeff1*(v(index-1)**g_coeff2)
-
-end if
+!if (growth_function==1) then
+!
+!  !Size-independent growth
+!  g_termr = g_coeff1
+!  g_terml = g_coeff1
+!
+!else if (growth_function==2) then
+!
+!  !Power-law growth
+!  g_termr = g_coeff1*(v(index)**g_coeff2)
+!  g_terml = g_coeff1*(v(index-1)**g_coeff2)
+!
+!end if
 
 !----------------------------------------------------------------------------------------------
 !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
@@ -153,5 +157,45 @@ else
 end if
 
 end subroutine growth_tvd
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine calc_growth_rate(index, n_sat, supersaturation_l, thermal_speed, diff_coeff, g_term)
+
+!**********************************************************************************************
+!
+! Calculates growth rate at indexed boundary
+!
+! By Jack Bartlett (27/05/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+integer, intent(in) :: index
+double precision, intent(in) :: n_sat, supersaturation_l, thermal_speed, diff_coeff
+double precision, intent(out) :: g_term
+
+double precision r_m, accom_coeff, correction_factor, J
+
+!----------------------------------------------------------------------------------------------
+
+r_m = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0) ! Find radius of indexed boundary
+
+accom_coeff = 1.D0
+
+correction_factor = 1 + accom_coeff * thermal_speed * r_m / (4.D0 * diff_coeff)
+
+J = (pi * r_m**2 * accom_coeff * thermal_speed * supersaturation_l * n_sat) / correction_factor
+
+g_term = water_molecular_vol * J
+
+end subroutine calc_growth_rate
 
 !**********************************************************************************************

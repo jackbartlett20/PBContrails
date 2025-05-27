@@ -103,6 +103,8 @@ double precision dn(m)
 
 double precision growth_source,growth_mass_source,params(1)
 
+double precision n_sat, supersaturation_l, thermal_speed, diff_coeff
+
 integer index
 
 !----------------------------------------------------------------------------------------------
@@ -113,21 +115,37 @@ params(1) = 0.
 ! Nucleation
 ! Add homogeneous nucleation at high supersaturation? Otherwise none
 
-!Growth
-if (growth_function>0) then
-  do index = 1,m
-    call growth_tvd(ni,index,growth_source)
-    niprime(index) = niprime(index) + growth_source
-  end do
-  if (i_gm==1) then
-    ! For mass-conservative growth scheme, apply growth source term after the first interval
-    do index=2,m
-      niprime(index) = niprime(index) + (ni(index)*g_coeff1 &
-      /((g_coeff2+1.)*0.5*(v(index)**2-v(index-1)**2))) & 
-      * (v(index)**(g_coeff2+1.)-v(index-1)**(g_coeff2+1.))
-    end do
-  end if
-end if
+! Growth
+
+! H2O number concentration at water saturation - not sure this is correct
+n_sat = avogadro_constant * Pvap / (ideal_gas_constant * temperature)
+
+supersaturation_l = Pvap/Psat_l - 1.D0
+
+thermal_speed = sqrt(3 * boltzmann_constant * temperature / water_molecular_mass)
+
+diff_coeff = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325D0 / P_ambient)
+
+do index = 1,m
+  call growth_tvd(ni,index,n_sat,supersaturation_l,thermal_speed,diff_coeff,growth_source)
+  niprime(index) = niprime(index) + growth_source
+end do
+
+
+!if (growth_function>0) then
+!  do index = 1,m
+!    call growth_tvd(ni,index,growth_source)
+!    niprime(index) = niprime(index) + growth_source
+!  end do
+!  if (i_gm==1) then
+!    ! For mass-conservative growth scheme, apply growth source term after the first interval
+!    do index=2,m
+!      niprime(index) = niprime(index) + (ni(index)*g_coeff1 &
+!      /((g_coeff2+1.)*0.5*(v(index)**2-v(index-1)**2))) & 
+!      * (v(index)**(g_coeff2+1.)-v(index-1)**(g_coeff2+1.))
+!    end do
+!  end if
+!end if
 
 !Aggregation
 if (agg_kernel>0) then
