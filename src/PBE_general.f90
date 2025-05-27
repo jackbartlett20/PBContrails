@@ -60,8 +60,15 @@ integer max_nuc
 integer order_of_gq
 
 ! Physical constants
-real, parameter :: ideal_gas_constant = 8.314 ! J mol-1 K-1
-real, parameter :: water_molar_mass = 0.018015 ! kg mol-1
+real*8, parameter :: ideal_gas_constant = 8.314 ! J mol-1 K-1
+real*8, parameter :: water_molar_mass = 0.018015 ! kg mol-1
+
+! Plume diffusion constants
+real*8, parameter :: eps_diffusivity = 0.0285D0 ! turbulent diffusivity ()
+real*8, parameter :: r_0 = 0.5D0 ! jet radius at exhaust (m)
+real*8, parameter :: x_m = r_0 * sqrt(2.D0/eps_diffusivity) ! unentrained length (m)
+real*8, parameter :: u_0 = 4.D2 ! exhaust velocity (m/s)
+real*8, parameter :: tau_m = x_m / u_0 ! mixing timescale (s)
 
 end module pbe_mod
 
@@ -496,7 +503,7 @@ subroutine pbe_set_environment(current_time)
 
 !**********************************************************************************************
 !
-! Set (or update) environment vairables (temperature and pressure)
+! Set (or update) environment variables (temperature and pressure)
 !
 ! By Jack Bartlett (22/05/2025)
 !
@@ -508,16 +515,20 @@ implicit none
 
 double precision, intent(in) :: current_time
 
+double precision dilution_factor
+
 !----------------------------------------------------------------------------------------------
 
-temperature = T_ambient + (T_exhaust - T_ambient) * exp(-k_cooling*current_time)
-Pvap = Pvap_ambient + (Pvap_exhaust - Pvap_ambient) * exp(-k_cooling*current_time)
+if (current_time.LE.tau_m) then
+  dilution_factor = 1.D0
+else
+  dilution_factor = (tau_m / current_time)**(0.9D0)
+end if
+
+temperature = T_ambient + (T_exhaust - T_ambient) * dilution_factor
+Pvap = Pvap_ambient + (Pvap_exhaust - Pvap_ambient) * dilution_factor
 Psat_l = 6.108E2*exp(17.27 * (temperature - 273.15)/(temperature - 35.86))
 Psat_i = 6.108E2*exp(21.87 * (temperature - 273.15)/(temperature - 7.66))
-
-!write(*,*) 'Temperature: ',temperature
-!write(*,*) 'Pvap: ',Pvap
-!write(*,*) 'Psat_l: ',Psat_l
 
 end subroutine pbe_set_environment
 
