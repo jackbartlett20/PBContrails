@@ -1,4 +1,4 @@
-This is a fork of https://github.com/CambridgeUniversityPress/Population-Balance-of-Particles-in-Flows.
+PBContrails is a basic population balance model for contrails in a perfectly stirred reactor (PSR). The code is adapted from https://github.com/CambridgeUniversityPress/Population-Balance-of-Particles-in-Flows.
 20/05/2025
 
 CPMOD - Chemistry and Particulates MODelling
