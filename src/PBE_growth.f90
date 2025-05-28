@@ -8,7 +8,8 @@
 
 !**********************************************************************************************
 
-subroutine growth_tvd(ni,index,dt,n_sat,supersaturation_l,thermal_speed,diff_coeff,growth_source)
+subroutine growth_tvd(ni, index, dt, n_sat, supersaturation_l, thermal_speed, diff_coeff,&
+                      &growth_source)
 
 !**********************************************************************************************
 !
@@ -63,40 +64,83 @@ end if
 !                population balances in crystallization
 !----------------------------------------------------------------------------------------------
 
-! growth rate is along positive direction
-if (index==1) then
+if (g_termr>0.D0) then
 
-  gnl = 0.0D0
-  gnr = g_termr * 0.5 * (ni(1)+ni(2))
+  ! growth rate is along positive direction
+  if (index==1) then
 
-else if (index==m) then
+    gnl = 0.0D0
+    gnr = g_termr * 0.5 * (ni(1)+ni(2))
 
-  rl = (ni(m) - ni(m-1) + eps) / (ni(m-1) - ni(m-2) + eps)
-  phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
-  gnl = g_terml * (ni(m-1) + 0.5 * phi * (ni(m-1) - ni(m-2)))
-  gnr = g_termr * (ni(m) + 0.5*(ni(m) - ni(m-1)))
+  else if (index==m) then
+
+    rl = (ni(m) - ni(m-1) + eps) / (ni(m-1) - ni(m-2) + eps)
+    phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+    gnl = g_terml * (ni(m-1) + 0.5 * phi * (ni(m-1) - ni(m-2)))
+    gnr = g_termr * (ni(m) + 0.5*(ni(m) - ni(m-1)))
+
+  else
+
+    ! Fluxes at cell right surface
+    nl = ni(index-1)
+    nc = ni(index)
+    nr = ni(index+1)
+    rr = (nr - nc + eps) / (nc - nl + eps)
+    phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
+    gnr = g_termr * (nc + 0.5 * phi * (nc - nl))
+
+    ! Fluxes at cell left surface
+    if (index==2 ) then
+      gnl = g_terml * 0.5 * (ni(1)+ni(2))
+    else
+      nl = ni(index-2)
+      nc = ni(index-1)
+      nr = ni(index)
+      rl = (nr - nc + eps) / (nc - nl + eps)
+      phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+      gnl = g_terml * (nc + 0.5 * phi * (nc - nl))
+    end if
+  end if
 
 else
 
-  ! Fluxes at cell right surface
-  nl = ni(index-1)
-  nc = ni(index)
-  nr = ni(index+1)
-  rr = (nr - nc + eps) / (nc - nl + eps)
-  phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
-  gnr = g_termr * (nc + 0.5 * phi * (nc - nl))
+  ! growth rate is along negative direction
+  if (index==1) then
 
-  ! Fluxes at cell left surface
-  if (index==2 ) then
-    gnl = g_terml * 0.5 * (ni(1)+ni(2))
+    gnl = g_terml * (ni(1) + 0.5 * (ni(1) - ni(2)))
+    rr = (ni(1) - ni(2) + eps) / (ni(2) - ni(3) + eps)
+    phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
+    gnr = g_termr * (ni(2) + 0.5 * phi * (ni(2) - ni(3)))
+
+  else if (index==m) then
+
+    gnr = 0
+    gnl = g_terml * 0.5 * (ni(m)+ni(m-1))
+
   else
-    nl = ni(index-2)
-    nc = ni(index-1)
-    nr = ni(index)
-    rl = (nr - nc + eps) / (nc - nl + eps)
+
+    ! Fluxes at cell right surface
+    if (index==m-1) then
+      gnr = g_termr * 0.5 * (ni(m)+ni(m-1))
+    else
+      nl = ni(index)
+      nc = ni(index+1)
+      nr = ni(index+2)
+      rr = (nl - nc + eps) / (nc - nr + eps)
+      phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
+      gnr = g_termr * (nc + 0.5 * phi * (nc - nr))
+    end if
+
+    ! Fluxes at cell left surface
+    nl = ni(index-1)
+    nc = ni(index)
+    nr = ni(index+1)
+    rl = (nl - nc + eps) / (nc - nr + eps)
     phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
-    gnl = g_terml * (nc + 0.5 * phi * (nc - nl))
+    gnl = g_terml * (nc + 0.5 * phi * (nc - nr))
+
   end if
+
 end if
 
 ! Calculate growth source
@@ -146,10 +190,9 @@ r_m = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0) ! Find radius of indexed boundary
 accom_coeff = 1.D0
 
 correction_factor = 1 + accom_coeff * thermal_speed * r_m / (4.D0 * diff_coeff)
-!write(*,*) "correction_factor: ",correction_factor
 
+! Flux of water molecules to droplets of size r_m
 J = (pi * r_m**2 * accom_coeff * thermal_speed * supersaturation_l * n_sat) / correction_factor
-!write(*,*) "J: ",J
 
 g_term = water_molecular_vol * J
 
