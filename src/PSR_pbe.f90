@@ -82,7 +82,7 @@ do i_step = 1,n_steps
   ! Write PSD
   if ((i_write==n_write).or.(i_step==n_steps)) then
     i_write = 0
-    call pbe_output_many(ni,i_writesp,n_files)
+    call pbe_output_many(ni,current_time,i_writesp,n_files)
     n_files = n_files + 1
   end if
   i_write = i_write + 1

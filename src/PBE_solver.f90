@@ -99,13 +99,13 @@ implicit none
 double precision, dimension(m), intent(in)  :: ni
 double precision, dimension(m), intent(out) :: niprime
 
-double precision, intent(in) :: dt ! only for Courant number check
+double precision, intent(in) :: dt
 
 double precision dn(m)
 
 double precision growth_source,growth_mass_source,params(1)
 
-double precision n_sat, supersaturation_l, thermal_speed, diff_coeff
+double precision n_sat, supersaturation_l, thermal_speed, diff_coeff, r_m, J, sum_Jn
 
 integer index
 
@@ -113,9 +113,12 @@ integer index
 
 niprime = 0. ! d(ni)/dt
 params(1) = 0.
+sum_Jn = 0.D0
+
 
 ! Nucleation
 ! Add homogeneous nucleation at high supersaturation? Otherwise none
+
 
 ! Growth
 supersaturation_l = Pvap/Psat_l - 1.D0
@@ -130,28 +133,26 @@ if (supersaturation_l>0) then
   diff_coeff = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325D0 / P_ambient)
 
   do index = 1,m
-    call growth_tvd(ni,index,dt,n_sat,supersaturation_l,thermal_speed,diff_coeff,growth_source)
+    call growth_tvd(ni, index, dt, n_sat, supersaturation_l, thermal_speed, diff_coeff,&
+                    &growth_source)
     niprime(index) = niprime(index) + growth_source
+
+    ! Calculate H2O flux to particles of size r_m
+    r_m = ((3.D0*v_m(index))/(4.D0*pi))**(1.D0/3.D0)
+    call calc_J(r_m, n_sat, supersaturation_l, thermal_speed, diff_coeff, J)
+    sum_Jn = sum_Jn + J * ni(index) * dv(index) ! Last part to change to absolute number density
   end do
+
+  ! Reduce supersaturation
+  supersaturation_l = supersaturation_l + (- sum_Jn / n_sat) * dt ! in brackets is ds/dt
+  Pvap = (supersaturation_l + 1.D0) * Psat_l
+  if (Pvap<0.D0) then
+    Pvap = 0.D0 ! just in case
+  end if
 
   ! Else niprime(index) does not change
 end if
 
-
-!if (growth_function>0) then
-!  do index = 1,m
-!    call growth_tvd(ni,index,growth_source)
-!    niprime(index) = niprime(index) + growth_source
-!  end do
-!  if (i_gm==1) then
-!    ! For mass-conservative growth scheme, apply growth source term after the first interval
-!    do index=2,m
-!      niprime(index) = niprime(index) + (ni(index)*g_coeff1 &
-!      /((g_coeff2+1.)*0.5*(v(index)**2-v(index-1)**2))) & 
-!      * (v(index)**(g_coeff2+1.)-v(index-1)**(g_coeff2+1.))
-!    end do
-!  end if
-!end if
 
 !Aggregation
 if (agg_kernel>0) then

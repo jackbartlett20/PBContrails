@@ -163,7 +163,8 @@ end subroutine growth_tvd
 
 !**********************************************************************************************
 
-subroutine calc_growth_rate(index, n_sat, supersaturation_l, thermal_speed, diff_coeff, g_term)
+subroutine calc_growth_rate(index, n_sat, supersaturation_l, thermal_speed, diff_coeff,&
+                            &g_term)
 
 !**********************************************************************************************
 !
@@ -181,21 +182,52 @@ integer, intent(in) :: index
 double precision, intent(in) :: n_sat, supersaturation_l, thermal_speed, diff_coeff
 double precision, intent(out) :: g_term
 
-double precision r_m, accom_coeff, correction_factor, J
+double precision r, J
 
 !----------------------------------------------------------------------------------------------
 
-r_m = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0) ! Find radius of indexed boundary
+r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0) ! Find radius of indexed boundary
 
-accom_coeff = 1.D0
-
-correction_factor = 1 + accom_coeff * thermal_speed * r_m / (4.D0 * diff_coeff)
-
-! Flux of water molecules to droplets of size r_m
-J = (pi * r_m**2 * accom_coeff * thermal_speed * supersaturation_l * n_sat) / correction_factor
+call calc_J(r, n_sat, supersaturation_l, thermal_speed, diff_coeff, J)
 
 g_term = water_molecular_vol * J
 
 end subroutine calc_growth_rate
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine calc_J(r, n_sat, supersaturation_l, thermal_speed, diff_coeff, J)
+
+!**********************************************************************************************
+!
+! Calculates J (flux of water molecules to droplets of size r)
+!
+! By Jack Bartlett (28/05/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in) :: r
+double precision, intent(in) :: n_sat, supersaturation_l, thermal_speed, diff_coeff
+double precision, intent(out) :: J
+
+double precision accom_coeff, correction_factor
+
+!----------------------------------------------------------------------------------------------
+
+accom_coeff = 1.D0
+
+correction_factor = 1 + accom_coeff * thermal_speed * r / (4.D0 * diff_coeff)
+
+J = (pi * r**2 * accom_coeff * thermal_speed * supersaturation_l * n_sat) / correction_factor
+
+end subroutine calc_J
 
 !**********************************************************************************************

@@ -46,6 +46,7 @@ double precision temperature,T_exhaust,T_ambient
 double precision P_ambient
 double precision Pvap,Pvap_exhaust,Pvap_ambient
 double precision Psat_l,Psat_i
+double precision mixing_grad
 double precision n_soot,r_mean_soot,sigma_soot
 
 integer m,grid_type
@@ -507,18 +508,34 @@ implicit none
 
 double precision, intent(in) :: current_time
 
-double precision dilution_factor
+double precision dilution_factor, temperature_new
 
 !----------------------------------------------------------------------------------------------
 
-if (current_time.LE.tau_m) then
-  dilution_factor = 1.D0
+! Initialisation
+if (current_time.eq.0.D0) then
+  temperature = T_exhaust
+  Pvap = Pvap_exhaust
+  mixing_grad = (Pvap_exhaust - Pvap_ambient) / (T_exhaust - T_ambient) ! Schumann's G
+
+! Updating
 else
-  dilution_factor = (tau_m / current_time)**(0.9D0)
+
+  if (current_time.LE.tau_m) then
+    dilution_factor = 1.D0
+  else
+    dilution_factor = (tau_m / current_time)**(0.9D0)
+  end if
+
+  temperature_new = T_ambient + (T_exhaust - T_ambient) * dilution_factor
+  ! Pvap can't be calculated the same way because it is also updated by growth
+  ! However, it does decrease like temperature due to mixing
+  Pvap = Pvap + mixing_grad * (temperature_new - temperature)
+
+  temperature = temperature_new
+
 end if
 
-temperature = T_ambient + (T_exhaust - T_ambient) * dilution_factor
-Pvap = Pvap_ambient + (Pvap_exhaust - Pvap_ambient) * dilution_factor
 Psat_l = 6.108E2*exp(17.27 * (temperature - 273.15)/(temperature - 35.86))
 Psat_i = 6.108E2*exp(21.87 * (temperature - 273.15)/(temperature - 7.66))
 
@@ -617,10 +634,10 @@ do i=m-5,m
   M1_lp = M1_lp + 0.5D0*(v(i-1)+v(i))*ni(i)*dv(i)
 end do
 
-lp = M1_lp/moment(1)
-if (lp.gt.0.001) then
-  write(*,*) 'warning, more than 0.1% of mass in the last five nodes'
-end if
+!lp = M1_lp/moment(1)
+!if (lp.gt.0.001) then
+!  write(*,*) 'warning, more than 0.1% of mass in the last five nodes'
+!end if
 
 if (moment(0).gt.1.D-10) then
   meansize = moment(1)/moment(0)
@@ -699,7 +716,7 @@ end subroutine pbe_output
 
 !**********************************************************************************************
 
-subroutine pbe_output_many(ni,i_writesp,n_files)
+subroutine pbe_output_many(ni,current_time,i_writesp,n_files)
 
 !**********************************************************************************************
 !
@@ -715,8 +732,10 @@ use pbe_mod
 implicit none
 
 double precision, dimension(m), intent(in) :: ni
+double precision, intent(in) :: current_time
 integer, intent(in) :: i_writesp
 integer, intent(in) :: n_files
+
 character(len=10) :: n_files_str
 character(len=20) :: filename
 
@@ -743,8 +762,8 @@ write(n_files_str, '(I0)') n_files ! Convert n_files integer to string for filen
 filename = "pbe/out/psd" // trim(n_files_str) // ".out"
 open(99,file=filename)
 do i=1,m
-  write(99,1001) v_m(i),(6.D0/pi*v_m(i))**(1.D0/3.D0),nitemp(i), &
-  & nitemp(i)*dv(i)/moment(0),v_m(i)*nitemp(i),v_m(i)*nitemp(i)*dv(i)/moment(1)
+  write(99,1001) current_time, v_m(i), dv(i), (6.D0/pi*v_m(i))**(1.D0/3.D0), nitemp(i), &
+  & nitemp(i)*dv(i)/moment(0), v_m(i)*nitemp(i), v_m(i)*nitemp(i)*dv(i)/moment(1)
 end do
 close(99)
 
@@ -754,7 +773,7 @@ if (n_files==0) then
 else
   open(99,file='pbe/out/environment_variables.out',status='old',position='append')
 end if
-write(99,1003) temperature, Pvap, Psat_l, Psat_i
+write(99,1003) current_time, temperature, Pvap, Psat_l, Psat_i
 close(99)
 
 if (i_writesp==1) then
@@ -772,9 +791,9 @@ do i=1,m
 end do
 close(99)
 
-1001 format(6E20.10)
+1001 format(8E20.10)
 1002 format(2E20.10)
-1003 format(4E20.10)
+1003 format(5E20.10)
 1004 format(2E20.10)
 
 end subroutine pbe_output_many
