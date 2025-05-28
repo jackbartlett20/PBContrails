@@ -536,8 +536,8 @@ else
 
 end if
 
-Psat_l = 6.108E2*exp(17.27 * (temperature - 273.15)/(temperature - 35.86))
-Psat_i = 6.108E2*exp(21.87 * (temperature - 273.15)/(temperature - 7.66))
+Psat_l = 6.108D2*exp(17.27D0 * (temperature - 273.15D0)/(temperature - 35.86D0))
+Psat_i = 6.108D2*exp(21.87D0 * (temperature - 273.15D0)/(temperature - 7.66D0))
 
 end subroutine pbe_set_environment
 
