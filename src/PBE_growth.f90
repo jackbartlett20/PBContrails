@@ -8,7 +8,7 @@
 
 !**********************************************************************************************
 
-subroutine growth_tvd(ni,index,n_sat,supersaturation_l,thermal_speed,diff_coeff,growth_source)
+subroutine growth_tvd(ni,index,dt,n_sat,supersaturation_l,thermal_speed,diff_coeff,growth_source)
 
 !**********************************************************************************************
 !
@@ -25,17 +25,19 @@ implicit none
 
 double precision, dimension(m), intent(in) :: ni
 integer, intent(in)                        :: index
+double precision, intent(in)               :: dt ! only for Courant number check
 double precision, intent(in)               :: n_sat,supersaturation_l,thermal_speed,diff_coeff
 double precision, intent(out)              :: growth_source
 
 double precision :: g_terml,g_termr,phi
+double precision :: courant
 double precision :: gnl,gnr           !< (G*N) at left surface and right surface
 double precision :: nl                !< Number density in left cell
 double precision :: nll               !< Number density in left-left cell
 double precision :: nc                !< Number density in this cell
 double precision :: nr                !< Number density in right cell
 double precision :: nrr               !< Number density in right-right cell
-double precision :: eps               !< Tolerance for upwind ratio
+double precision :: eps               !< Tolerance for upwind ratio (avoids div by zero)
 double precision :: rl,rr             !< r+ at left and right surface
 
 parameter(eps = 1.D1*epsilon(1.D0))
@@ -44,8 +46,9 @@ parameter(eps = 1.D1*epsilon(1.D0))
 
 !Only growth to the right present at nucleation interval
 
-!calc_growth_rate(index, n_sat, supersaturation_l, thermal_speed, diff_coeff, g_termr)
-!calc_growth_rate(index-1, n_sat, supersaturation_l, thermal_speed, diff_coeff, g_terml)
+call calc_growth_rate(index, n_sat, supersaturation_l, thermal_speed, diff_coeff, g_termr)
+!write(*,*) "g_termr: ",g_termr
+call calc_growth_rate(index-1, n_sat, supersaturation_l, thermal_speed, diff_coeff, g_terml)
 
 !if (growth_function==1) then
 !
@@ -60,6 +63,15 @@ parameter(eps = 1.D1*epsilon(1.D0))
 !  g_terml = g_coeff1*(v(index-1)**g_coeff2)
 !
 !end if
+
+! Courant-Friedrichs-Lewy (CFL) condition (C <= 1 for PBE)
+courant = g_termr * dt / dv(index)
+if (courant>1) then
+  write(*,*) "Courant number of ",courant," detected."
+  write(*,*) "Courant number should be <= 1 for growth function to work."
+  write(*,*) "Adjust dt proportionately."
+  stop
+end if
 
 !----------------------------------------------------------------------------------------------
 !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
@@ -191,8 +203,10 @@ r_m = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0) ! Find radius of indexed boundary
 accom_coeff = 1.D0
 
 correction_factor = 1 + accom_coeff * thermal_speed * r_m / (4.D0 * diff_coeff)
+!write(*,*) "correction_factor: ",correction_factor
 
 J = (pi * r_m**2 * accom_coeff * thermal_speed * supersaturation_l * n_sat) / correction_factor
+!write(*,*) "J: ",J
 
 g_term = water_molecular_vol * J
 

@@ -40,30 +40,30 @@ double precision k1(m),k2(m),k3(m),k4(m)
 if (solver_pbe == 1) then
 
   !Euler explicit
-  call pbe_ydot(ni,niprime)
+  call pbe_ydot(ni,niprime,dt)
   ni = ni + niprime * dt
 
 else if (solver_pbe == 2) then
 
   !Runge-Kutta 2nd order
-  call pbe_ydot(ni,niprime)
+  call pbe_ydot(ni,niprime,dt)
   nitemp = ni + 0.5D0 * niprime * dt
-  call pbe_ydot(nitemp,niprime)
+  call pbe_ydot(nitemp,niprime,dt)
   ni = ni + niprime * dt
 
 else if (solver_pbe == 3) then
 
   !Runge-Kutta 4th order
-  call pbe_ydot(ni,niprime)
+  call pbe_ydot(ni,niprime,dt)
   k1 = niprime * dt
   nitemp = ni + 0.5D0 * k1
-  call pbe_ydot(nitemp,niprime)
+  call pbe_ydot(nitemp,niprime,dt)
   k2 = niprime * dt
   nitemp = ni + 0.5D0 * k2
-  call pbe_ydot(nitemp,niprime)
+  call pbe_ydot(nitemp,niprime,dt)
   k3 = niprime * dt
   nitemp = ni + k3
-  call pbe_ydot(nitemp,niprime)
+  call pbe_ydot(nitemp,niprime,dt)
   k4 = niprime * dt
   ni = ni + (1.D0 / 6.D0) * k1 + (1.D0 / 3.D0) * k2 + (1.D0 / 3.D0) * k3 + (1.D0 / 6.D0) * k4
 
@@ -77,7 +77,7 @@ end subroutine pbe_integ
 
 !**********************************************************************************************
 
-subroutine pbe_ydot(ni,niprime)
+subroutine pbe_ydot(ni,niprime,dt)
 
 !**********************************************************************************************
 !
@@ -99,6 +99,8 @@ implicit none
 double precision, dimension(m), intent(in)  :: ni
 double precision, dimension(m), intent(out)    :: niprime
 
+double precision, intent(in) :: dt ! only for Courant number check
+
 double precision dn(m)
 
 double precision growth_source,growth_mass_source,params(1)
@@ -116,20 +118,24 @@ params(1) = 0.
 ! Add homogeneous nucleation at high supersaturation? Otherwise none
 
 ! Growth
-
-! H2O number concentration at water saturation - not sure this is correct
-n_sat = avogadro_constant * Pvap / (ideal_gas_constant * temperature)
-
 supersaturation_l = Pvap/Psat_l - 1.D0
+if (supersaturation_l>0) then
+  ! Do droplet growth
 
-thermal_speed = sqrt(3 * boltzmann_constant * temperature / water_molecular_mass)
+  ! H2O number concentration at water saturation - not sure this is correct
+  n_sat = avogadro_constant * Pvap / (ideal_gas_constant * temperature)
 
-diff_coeff = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325D0 / P_ambient)
+  thermal_speed = sqrt(3 * boltzmann_constant * temperature / water_molecular_mass)
 
-do index = 1,m
-  call growth_tvd(ni,index,n_sat,supersaturation_l,thermal_speed,diff_coeff,growth_source)
-  niprime(index) = niprime(index) + growth_source
-end do
+  diff_coeff = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325D0 / P_ambient)
+
+  do index = 1,m
+    call growth_tvd(ni,index,dt,n_sat,supersaturation_l,thermal_speed,diff_coeff,growth_source)
+    niprime(index) = niprime(index) + growth_source
+  end do
+
+  ! Else niprime(index) does not change
+end if
 
 
 !if (growth_function>0) then
