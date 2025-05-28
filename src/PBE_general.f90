@@ -41,7 +41,6 @@ double precision, allocatable, dimension(:) :: ni_soot
 double precision v0,grid_lb,grid_rb
 double precision agg_kernel_const
 double precision break_const
-double precision g_coeff1,g_coeff2
 double precision N0
 double precision temperature,T_exhaust,T_ambient
 double precision P_ambient
@@ -213,9 +212,6 @@ read(30,*) Pvap_ambient
 read(30,*) n_soot
 read(30,*) r_mean_soot
 read(30,*) sigma_soot
-read(30,*) growth_function
-read(30,*) g_coeff1
-read(30,*) g_coeff2
 read(30,*) i_gm
 read(30,*) break_const
 read(30,*) order_of_gq
@@ -231,12 +227,6 @@ read(30,*) N0
 read(30,*) solver_pbe
 
 n_pbe = m
-
-if ((agg_kernel>0).and.(growth_function==1)) then
-  write(*,*) 'mass-conservative discretisation should not be used with size-independent &
-  growth, stopping'
-  stop
-end if
 
 end subroutine pbe_read
 

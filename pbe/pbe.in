@@ -10,9 +10,6 @@ PBE INPUT DATA
 8.E11                           ! Soot particle concentration in exhaust (m-3) -> n_soot
 20.E-9                          ! Mean soot particle radius (m) -> r_mean_soot
 1.823E-1                        ! Standard deviation of soot particle radius in log-space (1.2 nm -> 0.182) -> sigma_soot
-0                               ! Growth model -> growth_function
-1                               ! Growth rate -> g_coeff1
-1.                              ! Growth exponent (for power-law model) -> g_coeff2
 0                               ! Mass-conservative growth discretisation -> i_gm
 0.                              ! Fragmentation rate constant -> break_const
 3                               ! Order of Gaussian quadrature (for fragmentation) -> order_of_gq
@@ -35,11 +32,6 @@ Aggregation kernels:
 4. Free molecular
 5. Brownian motion
 6. Shear
-
-Growth models:
-0. No growth
-1. Size-independent
-2. Power-law
 
 Fragmentation:
 Set fragmentation rate constant to 0. for no fragmentation

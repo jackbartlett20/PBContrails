@@ -97,7 +97,7 @@ use pbe_mod
 implicit none
 
 double precision, dimension(m), intent(in)  :: ni
-double precision, dimension(m), intent(out)    :: niprime
+double precision, dimension(m), intent(out) :: niprime
 
 double precision, intent(in) :: dt ! only for Courant number check
 
