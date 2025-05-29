@@ -33,6 +33,9 @@ double precision, intent(in) :: dt
 
 double precision niprime(m),nitemp(m)
 double precision k1(m),k2(m),k3(m),k4(m)
+double precision r_m, J, sum_Jn, delta_supersaturation_l 
+
+integer index
 
 !----------------------------------------------------------------------------------------------
 
@@ -66,6 +69,24 @@ else if (solver_pbe == 3) then
   k4 = niprime * dt
   ni_droplet = ni_droplet + (1.D0 / 6.D0) * k1 + (1.D0 / 3.D0) * k2 + (1.D0 / 3.D0) * k3 + (1.D0 / 6.D0) * k4
 
+end if
+
+! Deplete supersaturation
+sum_Jn = 0.D0
+if (supersaturation_l>0.D0) then
+  
+  do index=1,m
+    ! Calculate H2O flux to particles of size r_m
+    r_m = ((3.D0*v_m(index))/(4.D0*pi))**(1.D0/3.D0)
+    call calc_J(r_m, J)
+    sum_Jn = sum_Jn + J * ni_droplet(index) * dv(index) ! Last part to change to absolute number density
+  end do
+
+  delta_supersaturation_l = (- sum_Jn / n_sat) * dt ! in brackets is ds/dt
+  Pvap = (supersaturation_l + delta_supersaturation_l + 1.D0) * Psat_l
+  if (Pvap<0.D0) then
+    Pvap = 0.D0 ! just in case
+  end if
 end if
 
 end subroutine pbe_integ
@@ -104,15 +125,12 @@ double precision dn(m)
 
 double precision growth_source,growth_mass_source,params(1)
 
-double precision n_sat, supersaturation_l, thermal_speed, diff_coeff, r_m, J, sum_Jn
-
 integer index
 
 !----------------------------------------------------------------------------------------------
 
 niprime = 0. ! d(ni)/dt
 params(1) = 0.
-sum_Jn = 0.D0
 
 
 ! Nucleation
@@ -120,33 +138,12 @@ sum_Jn = 0.D0
 
 
 ! Droplet growth
-supersaturation_l = Pvap/Psat_l - 1.D0
 if (supersaturation_l>0) then
 
-  ! H2O number concentration at water saturation - not sure this is correct
-  n_sat = avogadro_constant * Pvap / (ideal_gas_constant * temperature)
-
-  thermal_speed = sqrt(3 * boltzmann_constant * temperature / water_molecular_mass)
-
-  diff_coeff = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325D0 / P_ambient)
-
   do index = 1,m
-    call growth_tvd(ani, index, dt, n_sat, supersaturation_l, thermal_speed, diff_coeff,&
-                    &growth_source)
+    call growth_tvd(ani, index, dt, growth_source)
     niprime(index) = niprime(index) + growth_source
-
-    ! Calculate H2O flux to particles of size r_m - THIS SHOULD BE IN pbe_integ FOR OTHER SOLVERS TO WORK
-    r_m = ((3.D0*v_m(index))/(4.D0*pi))**(1.D0/3.D0)
-    call calc_J(r_m, n_sat, supersaturation_l, thermal_speed, diff_coeff, J)
-    sum_Jn = sum_Jn + J * ani(index) * dv(index) ! Last part to change to absolute number density
   end do
-
-  ! Reduce supersaturation
-  supersaturation_l = supersaturation_l + (- sum_Jn / n_sat) * dt ! in brackets is ds/dt
-  Pvap = (supersaturation_l + 1.D0) * Psat_l
-  if (Pvap<0.D0) then
-    Pvap = 0.D0 ! just in case
-  end if
 
   ! Else niprime(index) does not change
 end if

@@ -8,8 +8,7 @@
 
 !**********************************************************************************************
 
-subroutine growth_tvd(ani, index, dt, n_sat, supersaturation_l, thermal_speed, diff_coeff,&
-                      &growth_source)
+subroutine growth_tvd(ani, index, dt, growth_source)
 
 !**********************************************************************************************
 !
@@ -28,7 +27,6 @@ double precision, dimension(m), intent(in) :: ani
 
 integer, intent(in)                        :: index
 double precision, intent(in)               :: dt ! only for Courant number check
-double precision, intent(in)               :: n_sat,supersaturation_l,thermal_speed,diff_coeff
 double precision, intent(out)              :: growth_source
 
 double precision :: g_terml,g_termr,phi
@@ -47,9 +45,9 @@ parameter(eps = 1.D1*epsilon(1.D0))
 !**********************************************************************************************
 
 ! Growth rate at right boundary calculation
-call calc_growth_rate(index, n_sat, supersaturation_l, thermal_speed, diff_coeff, g_termr)
+call calc_growth_rate(index, g_termr)
 ! Growth rate at left boundary calculation
-call calc_growth_rate(index-1, n_sat, supersaturation_l, thermal_speed, diff_coeff, g_terml)
+call calc_growth_rate(index-1, g_terml)
 
 ! Courant-Friedrichs-Lewy (CFL) condition (C <= 1 for PBE)
 courant = g_termr * dt / dv(index)
@@ -164,8 +162,7 @@ end subroutine growth_tvd
 
 !**********************************************************************************************
 
-subroutine calc_growth_rate(index, n_sat, supersaturation_l, thermal_speed, diff_coeff,&
-                            &g_term)
+subroutine calc_growth_rate(index, g_term)
 
 !**********************************************************************************************
 !
@@ -180,7 +177,6 @@ use pbe_mod
 implicit none
 
 integer, intent(in) :: index
-double precision, intent(in) :: n_sat, supersaturation_l, thermal_speed, diff_coeff
 double precision, intent(out) :: g_term
 
 double precision r, J
@@ -189,7 +185,7 @@ double precision r, J
 
 r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0) ! Find radius of indexed boundary
 
-call calc_J(r, n_sat, supersaturation_l, thermal_speed, diff_coeff, J)
+call calc_J(r, J)
 
 g_term = water_molecular_vol * J
 
@@ -201,7 +197,7 @@ end subroutine calc_growth_rate
 
 !**********************************************************************************************
 
-subroutine calc_J(r, n_sat, supersaturation_l, thermal_speed, diff_coeff, J)
+subroutine calc_J(r, J)
 
 !**********************************************************************************************
 !
@@ -216,7 +212,6 @@ use pbe_mod
 implicit none
 
 double precision, intent(in) :: r
-double precision, intent(in) :: n_sat, supersaturation_l, thermal_speed, diff_coeff
 double precision, intent(out) :: J
 
 double precision accom_coeff, correction_factor
@@ -225,9 +220,9 @@ double precision accom_coeff, correction_factor
 
 accom_coeff = 1.D0
 
-correction_factor = 1 + accom_coeff * thermal_speed * r / (4.D0 * diff_coeff)
+correction_factor = 1 + accom_coeff * vapour_thermal_speed * r / (4.D0 * diff_coeff)
 
-J = (pi * r**2 * accom_coeff * thermal_speed * supersaturation_l * n_sat) / correction_factor
+J = (pi * r**2 * accom_coeff * vapour_thermal_speed * supersaturation_l * n_sat) / correction_factor
 
 end subroutine calc_J
 

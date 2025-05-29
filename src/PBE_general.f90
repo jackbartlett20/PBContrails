@@ -44,18 +44,27 @@ double precision, allocatable, dimension(:) :: ni_soot
 double precision v0,grid_lb,grid_rb
 double precision agg_kernel_const
 double precision break_const
-double precision temperature,T_exhaust,T_ambient
-double precision P_ambient
-double precision Pvap,Pvap_exhaust,Pvap_ambient
-double precision Psat_l,Psat_i
-double precision mixing_grad
-double precision n_soot,r_mean_soot,sigma_soot
 
 integer m,grid_type
 integer i_gm,solver_pbe
 integer agg_kernel
 integer growth_function
 integer order_of_gq
+
+! Environment variables
+double precision temperature,T_exhaust,T_ambient
+double precision P_ambient
+double precision Pvap,Pvap_exhaust,Pvap_ambient
+double precision Psat_l,Psat_i
+double precision supersaturation_l,supersaturation_i
+double precision mixing_grad
+double precision n_sat
+double precision vapour_thermal_speed
+double precision diff_coeff
+
+! Soot initialisation
+double precision n_soot,r_mean_soot,sigma_soot
+
 
 ! Double precision kind
 integer, parameter :: dp = selected_real_kind(15, 307)
@@ -529,6 +538,17 @@ end if
 
 Psat_l = 6.108D2*exp(17.27D0 * (temperature - 273.15D0)/(temperature - 35.86D0))
 Psat_i = 6.108D2*exp(21.87D0 * (temperature - 273.15D0)/(temperature - 7.66D0))
+
+supersaturation_l = Pvap/Psat_l - 1.D0
+supersaturation_i = Pvap/Psat_i - 1.D0
+
+! H2O number concentration at water saturation - not sure this is correct
+n_sat = avogadro_constant * Pvap / (ideal_gas_constant * temperature)
+
+vapour_thermal_speed = sqrt(3 * boltzmann_constant * temperature / water_molecular_mass)
+
+diff_coeff = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325D0 / P_ambient)
+
 
 end subroutine pbe_set_environment
 

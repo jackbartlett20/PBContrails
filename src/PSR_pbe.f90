@@ -70,8 +70,9 @@ do i_step = 1,n_steps
   ! Update soot activation
   call pbe_activation()
 
-  ! Integrate
+  ! Integrate - only for functions which change ni over time (nucleation, growth, agg, frag)
   call pbe_integ(dt)
+
 
   ! Write PSD
   if ((i_write==n_write).or.(i_step==n_steps)) then
