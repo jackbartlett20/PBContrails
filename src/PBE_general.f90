@@ -35,13 +35,13 @@ save
 double precision, allocatable, dimension(:) :: v
 double precision, allocatable, dimension(:) :: dv
 double precision, allocatable, dimension(:) :: v_m
+double precision, allocatable, dimension(:) :: d_m
 double precision, allocatable, dimension(:) :: nuc
 double precision, allocatable, dimension(:) :: ni_soot
 
 double precision v0,grid_lb,grid_rb
 double precision agg_kernel_const
 double precision break_const
-double precision N0
 double precision temperature,T_exhaust,T_ambient
 double precision P_ambient
 double precision Pvap,Pvap_exhaust,Pvap_ambient
@@ -51,7 +51,6 @@ double precision n_soot,r_mean_soot,sigma_soot
 
 integer m,grid_type
 integer i_gm,solver_pbe
-integer initdis,n_th1,n_th2
 integer agg_kernel
 integer growth_function
 integer order_of_gq
@@ -221,10 +220,6 @@ read(30,*) m
 read(30,*) grid_lb
 read(30,*) grid_rb
 read(30,*) v0
-read(30,*) initdis
-read(30,*) n_th1
-read(30,*) n_th2
-read(30,*) N0
 read(30,*) solver_pbe
 
 n_pbe = m
@@ -295,14 +290,8 @@ if (break_const>0.) then
 end if
 
 ! Initialise distribution
-if (initdis==1) then
-  ! Zero
-  ni = 0.D0
-else if (initdis==2) then
-  ! Top hat
-  ni = 0.D0
-  ni(n_th1:n_th2) = N0
-end if
+ni = 0.D0
+
 
 end subroutine pbe_init
 
@@ -330,6 +319,7 @@ subroutine pbe_grid()
 ! v                     independent variable - volume
 ! dv                    lengths of intervals
 ! v_m                   interval mid-points
+! d_m                   diameter corresponding to mid-point
 ! v0                    size of nuclei
 ! grid_lb               left boundary
 ! grid_rb               right boundary
@@ -347,7 +337,7 @@ integer i
 !----------------------------------------------------------------------------------------------
 
 ! Allocate arrays
-allocate(v(0:m),dv(m),v_m(m),nuc(m),ni_soot(m))
+allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),ni_soot(m))
 
 if (grid_type==1) then
 
@@ -400,6 +390,11 @@ end do
 !Determine mid-points
 do i=1,m
   v_m(i) = v(i-1)+0.5D0*dv(i)
+end do
+
+! Determine diameters of mid-points
+do i=1,m
+  d_m(i) = (6.D0/pi*v_m(i))**(1.D0/3.D0)
 end do
 
 end subroutine pbe_grid
@@ -653,75 +648,11 @@ end subroutine pbe_moments
 
 !**********************************************************************************************
 
-subroutine pbe_output(ni,i_writesp)
+subroutine pbe_output(ni,current_time,i_writesp,n_files)
 
 !**********************************************************************************************
 !
 ! Writes PSD and Self-Preserving distribution if required
-!
-! By Stelios Rigopoulos
-! Modified 06/05/2017
-! Modified 04/07/2020
-!
-!**********************************************************************************************
-
-use pbe_mod
-
-implicit none
-
-double precision, dimension(m), intent(in) :: ni
-integer, intent(in) :: i_writesp
-
-double precision :: nitemp(m),eta(m),psi(m)
-double precision, dimension(0:1) :: moment
-
-double precision meansize
-
-integer i
-
-!----------------------------------------------------------------------------------------------
-
-call pbe_moments(ni,moment,meansize)
-
-do i=1,m
-  if (abs(ni(i))<1.D-16) then
-    nitemp(i) = 0.D0
-  else
-    nitemp(i) = ni(i)
-  end if
-end do
-open(99,file='pbe/out/psd.out')
-do i=1,m
-  write(99,1001) v_m(i),(6.D0/pi*v_m(i))**(1.D0/3.D0),nitemp(i), &
-  & nitemp(i)*dv(i)/moment(0),v_m(i)*nitemp(i),v_m(i)*nitemp(i)*dv(i)/moment(1)
-end do
-close(99)
-if (i_writesp==1) then
-  open(99,file='pbe/out/psd_sp.out')
-  do i=1,m
-    eta(i) = moment(0)*v_m(i)/moment(1)
-    psi(i) = nitemp(i)*moment(1)/moment(0)**2
-    write(99,1002) eta(i),psi(i)
-  end do
-end if
-
-1001 format(6E20.10)
-1002 format(2E20.10)
-
-end subroutine pbe_output
-
-!**********************************************************************************************
-
-
-
-!**********************************************************************************************
-
-subroutine pbe_output_many(ni,current_time,i_writesp,n_files)
-
-!**********************************************************************************************
-!
-! Writes PSD and Self-Preserving distribution if required
-! Modified version of pbe_output which writes to a new file at each write-up
 !
 ! By Jack Bartlett (21/05/2025)
 !
@@ -737,7 +668,7 @@ integer, intent(in) :: i_writesp
 integer, intent(in) :: n_files
 
 character(len=10) :: n_files_str
-character(len=20) :: filename
+character(len=30) :: filename
 
 double precision :: nitemp(m),eta(m),psi(m)
 double precision, dimension(0:1) :: moment
@@ -758,45 +689,52 @@ do i=1,m
   end if
 end do
 
-write(n_files_str, '(I0)') n_files ! Convert n_files integer to string for filename
-filename = "pbe/out/psd" // trim(n_files_str) // ".out"
-open(99,file=filename)
+
+!write(n_files_str, '(I0)') n_files ! Convert n_files integer to string for filename
+!filename = "pbe/out/psd" // trim(n_files_str) // ".out"
+
+filename = "output/psd_droplet.out"
+if (n_files==0) then
+  open(99,file=filename,status='replace')
+else
+  open(99,file=filename,status='old',position='append')
+end if
 do i=1,m
-  write(99,1001) current_time, v_m(i), dv(i), (6.D0/pi*v_m(i))**(1.D0/3.D0), nitemp(i), &
+  write(99,1001) current_time, v_m(i), dv(i), d_m(i), nitemp(i), &
   & nitemp(i)*dv(i)/moment(0), v_m(i)*nitemp(i), v_m(i)*nitemp(i)*dv(i)/moment(1)
 end do
 close(99)
 
 ! Write environment variables to end of environment_variables.out
 if (n_files==0) then
-  open(99,file='pbe/out/environment_variables.out',status='replace')
+  open(99,file='output/environment_variables.out',status='replace')
 else
-  open(99,file='pbe/out/environment_variables.out',status='old',position='append')
+  open(99,file='output/environment_variables.out',status='old',position='append')
 end if
 write(99,1003) current_time, temperature, Pvap, Psat_l, Psat_i
 close(99)
 
-if (i_writesp==1) then
-  open(99,file='pbe/out/psd_sp.out')
-  do i=1,m
-    eta(i) = moment(0)*v_m(i)/moment(1)
-    psi(i) = nitemp(i)*moment(1)/moment(0)**2
-    write(99,1002) eta(i),psi(i)
-  end do
-end if
+!if (i_writesp==1) then
+!  open(99,file='pbe/out/psd_sp.out')
+!  do i=1,m
+!    eta(i) = moment(0)*v_m(i)/moment(1)
+!    psi(i) = nitemp(i)*moment(1)/moment(0)**2
+!    write(99,1002) eta(i),psi(i)
+!  end do
+!end if
 
-open(99,file='soot.out')
-do i=1,m
-  write(99,1004) v_m(i), ni_soot(i)
-end do
-close(99)
+!open(99,file='soot.out')
+!do i=1,m
+!  write(99,1004) v_m(i), ni_soot(i)
+!end do
+!close(99)
 
 1001 format(8E20.10)
 1002 format(2E20.10)
 1003 format(5E20.10)
 1004 format(2E20.10)
 
-end subroutine pbe_output_many
+end subroutine pbe_output
 
 !**********************************************************************************************
 
@@ -818,7 +756,7 @@ subroutine pbe_deallocate()
 
 use pbe_mod
  
-deallocate(v,dv,v_m,nuc,ni_soot)
+deallocate(v,dv,v_m,d_m,nuc,ni_soot)
 
 end subroutine pbe_deallocate
 

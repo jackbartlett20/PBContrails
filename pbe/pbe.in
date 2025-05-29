@@ -18,10 +18,6 @@ PBE INPUT DATA
 4.E-24                          ! Minimum size in grid (m3) (must be >0 for geometric grid) -> grid_lb
 4.E-21                          ! Maximum size in grid (m3) -> grid_rb
 1.                              ! Volume of nuclei -> v0 (obsolete)
-1                               ! Initial distribution -> initdis
-900                             ! First non-zero interval for top-hat distribution -> n_th1
-1100                            ! Second non-zero interval for top-hat distribution -> n_th2
-1.                              ! Value for initialising number density -> N0
 1                               ! Integration method -> solver_pbe
 
 Aggregation kernels:
@@ -40,14 +36,6 @@ Uniform binary is currently implemented, for other models edit breakage_fcn
 Grid types:
 1. Geometric
 2. Uniform
-
-Initial distributions:
-1. Zero
-2. Top hat
-
-Nucleation range for constant nucleation:
-- 0 for no nucleation
-- Range of intervals where nucleation occurs (value of n means nucleation will occur in smallest n intervals)
 
 Integration methods:
 1. Explicit Euler
