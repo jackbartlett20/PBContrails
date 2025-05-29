@@ -38,7 +38,7 @@ double precision, allocatable, dimension(:) :: v_m
 double precision, allocatable, dimension(:) :: d_m
 double precision, allocatable, dimension(:) :: nuc
 
-double precision, allocatable, dimension(:) :: ni
+double precision, allocatable, dimension(:) :: ni_droplet
 double precision, allocatable, dimension(:) :: ni_soot
 
 double precision v0,grid_lb,grid_rb
@@ -286,7 +286,7 @@ if (break_const>0.) then
 end if
 
 ! Initialise distribution
-ni = 0.D0
+ni_droplet = 0.D0
 
 
 end subroutine pbe_init
@@ -311,7 +311,7 @@ subroutine pbe_grid()
 ! Modified 14/07/2020
 !
 ! m                     number of points
-! ni                    population density
+! ni_droplet            population density of droplets
 ! v                     independent variable - volume
 ! dv                    lengths of intervals
 ! v_m                   interval mid-points
@@ -333,7 +333,7 @@ integer i
 !----------------------------------------------------------------------------------------------
 
 ! Allocate arrays
-allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),ni(m),ni_soot(m))
+allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),ni_droplet(m),ni_soot(m))
 
 if (grid_type==1) then
 
@@ -567,10 +567,10 @@ if (Pvap>Psat_l) then
   ! Convert radius to volume
   v_act = 4.D0/3.D0 * pi * r_act**3.D0
 
-  ! Move ni_soot to ni for all volumes larger than critical
+  ! Move ni_soot to ni_droplet for all volumes larger than critical
   do index=1,m
     if (v_m(index) > v_act) then
-      ni(index) = ni(index) + ni_soot(index)
+      ni_droplet(index) = ni_droplet(index) + ni_soot(index)
       ni_soot(index) = 0.D0
     end if
   end do
@@ -759,7 +759,7 @@ subroutine pbe_deallocate()
 
 use pbe_mod
  
-deallocate(v,dv,v_m,d_m,nuc,ni,ni_soot)
+deallocate(v,dv,v_m,d_m,nuc,ni_droplet,ni_soot)
 
 end subroutine pbe_deallocate
 

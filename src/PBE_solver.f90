@@ -29,7 +29,7 @@ use pbe_mod
 
 implicit none
 
-double precision, intent(in)                  :: dt
+double precision, intent(in) :: dt
 
 double precision niprime(m),nitemp(m)
 double precision k1(m),k2(m),k3(m),k4(m)
@@ -39,32 +39,32 @@ double precision k1(m),k2(m),k3(m),k4(m)
 if (solver_pbe == 1) then
 
   !Euler explicit
-  call pbe_ydot(ni,niprime,dt)
-  ni = ni + niprime * dt
+  call pbe_ydot(ni_droplet,niprime,dt)
+  ni_droplet = ni_droplet + niprime * dt
 
 else if (solver_pbe == 2) then
 
   !Runge-Kutta 2nd order
-  call pbe_ydot(ni,niprime,dt)
-  nitemp = ni + 0.5D0 * niprime * dt
+  call pbe_ydot(ni_droplet,niprime,dt)
+  nitemp = ni_droplet + 0.5D0 * niprime * dt
   call pbe_ydot(nitemp,niprime,dt)
-  ni = ni + niprime * dt
+  ni_droplet = ni_droplet + niprime * dt
 
 else if (solver_pbe == 3) then
 
   !Runge-Kutta 4th order
-  call pbe_ydot(ni,niprime,dt)
+  call pbe_ydot(ni_droplet,niprime,dt)
   k1 = niprime * dt
-  nitemp = ni + 0.5D0 * k1
+  nitemp = ni_droplet + 0.5D0 * k1
   call pbe_ydot(nitemp,niprime,dt)
   k2 = niprime * dt
-  nitemp = ni + 0.5D0 * k2
+  nitemp = ni_droplet + 0.5D0 * k2
   call pbe_ydot(nitemp,niprime,dt)
   k3 = niprime * dt
-  nitemp = ni + k3
+  nitemp = ni_droplet + k3
   call pbe_ydot(nitemp,niprime,dt)
   k4 = niprime * dt
-  ni = ni + (1.D0 / 6.D0) * k1 + (1.D0 / 3.D0) * k2 + (1.D0 / 3.D0) * k3 + (1.D0 / 6.D0) * k4
+  ni_droplet = ni_droplet + (1.D0 / 6.D0) * k1 + (1.D0 / 3.D0) * k2 + (1.D0 / 3.D0) * k3 + (1.D0 / 6.D0) * k4
 
 end if
 
@@ -157,12 +157,12 @@ if (agg_kernel>0) then
   ! CFV formulation of Liu and Rigopoulos (2019)
   ! Note 1: current value of niprime is augmented within pbe_agg_cfv
   ! Note 2: contracting grid is not implemented
-  call pbe_agg_cfv(dv,v_m,ni,niprime)
+  call pbe_agg_cfv(dv,v_m,ani,niprime)
 end if
 
 !Fragmentation
 if (break_const>0.) then
-  call pbe_breakage_cfv(niprime,ni)
+  call pbe_breakage_cfv(niprime,ani)
 end if
 
 end subroutine pbe_ydot

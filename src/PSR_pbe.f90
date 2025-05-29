@@ -52,9 +52,6 @@ n_files = 0
 
 ! Integration
 
-! Write initial moments
-!call PBE_moments(ni,moment,meansize)
-
 do i_step = 1,n_steps
 
   current_time = current_time + dt
@@ -76,9 +73,6 @@ do i_step = 1,n_steps
   ! Integrate
   call pbe_integ(dt)
 
-  ! Calculate moments
-  !call pbe_moments(ni,moment,meansize)
-
   ! Write PSD
   if ((i_write==n_write).or.(i_step==n_steps)) then
     
@@ -88,7 +82,7 @@ do i_step = 1,n_steps
 
     ! Droplets
     filename = "output/psd_droplet.out"
-    call pbe_output_psd(ni, filename, current_time, n_files)
+    call pbe_output_psd(ni_droplet, filename, current_time, n_files)
 
     ! Environment variables
     call pbe_output_env(current_time, n_files)
