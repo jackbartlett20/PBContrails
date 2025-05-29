@@ -17,8 +17,10 @@ double precision, allocatable :: ni(:)
 double precision moment(0:1)
 double precision int_time,tin,current_time,meansize,dt
 
-integer i,i_step,n_steps,iflag,flowflag,nin,i_write,n_write,i_writesp,n_files
+integer i,i_step,n_steps,iflag,flowflag,nin,i_write,n_write,n_files
 integer agg_kernel_update,n_pbe_grid
+
+character(len=30) :: filename
 
 !**********************************************************************************************
 
@@ -38,7 +40,6 @@ end do
 read(30,*) int_time
 read(30,*) dt
 read(30,*) agg_kernel_update
-read(30,*) i_writesp
 read(30,*) n_write
 close(30)
 
@@ -81,9 +82,16 @@ do i_step = 1,n_steps
 
   ! Write PSD
   if ((i_write==n_write).or.(i_step==n_steps)) then
-    i_write = 0
-    call pbe_output(ni,current_time,i_writesp,n_files)
+    
+    ! Droplets
+    filename = "output/psd_droplet.out"
+    call pbe_output_psd(ni, filename, current_time, n_files)
+
+    ! Environment variables
+    call pbe_output_env(current_time, n_files)
+
     n_files = n_files + 1
+    i_write = 0
   end if
   i_write = i_write + 1
 

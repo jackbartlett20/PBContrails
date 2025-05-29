@@ -120,10 +120,9 @@ sum_Jn = 0.D0
 ! Add homogeneous nucleation at high supersaturation? Otherwise none
 
 
-! Growth
+! Droplet growth
 supersaturation_l = Pvap/Psat_l - 1.D0
 if (supersaturation_l>0) then
-  ! Do droplet growth
 
   ! H2O number concentration at water saturation - not sure this is correct
   n_sat = avogadro_constant * Pvap / (ideal_gas_constant * temperature)

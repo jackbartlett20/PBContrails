@@ -648,13 +648,13 @@ end subroutine pbe_moments
 
 !**********************************************************************************************
 
-subroutine pbe_output(ni,current_time,i_writesp,n_files)
+subroutine pbe_output_psd(ni,filename,current_time,n_files)
 
 !**********************************************************************************************
 !
-! Writes PSD and Self-Preserving distribution if required
+! Writes PSD each time step
 !
-! By Jack Bartlett (21/05/2025)
+! By Jack Bartlett (29/05/2025)
 !
 !**********************************************************************************************
 
@@ -663,14 +663,11 @@ use pbe_mod
 implicit none
 
 double precision, dimension(m), intent(in) :: ni
+character(len=30), intent(in) :: filename
 double precision, intent(in) :: current_time
-integer, intent(in) :: i_writesp
 integer, intent(in) :: n_files
 
-character(len=10) :: n_files_str
-character(len=30) :: filename
-
-double precision :: nitemp(m),eta(m),psi(m)
+double precision :: nitemp(m)
 double precision, dimension(0:1) :: moment
 
 double precision meansize
@@ -690,10 +687,6 @@ do i=1,m
 end do
 
 
-!write(n_files_str, '(I0)') n_files ! Convert n_files integer to string for filename
-!filename = "pbe/out/psd" // trim(n_files_str) // ".out"
-
-filename = "output/psd_droplet.out"
 if (n_files==0) then
   open(99,file=filename,status='replace')
 else
@@ -705,36 +698,52 @@ do i=1,m
 end do
 close(99)
 
+
+1001 format(8E20.10)
+
+end subroutine pbe_output_psd
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_output_env(current_time,n_files)
+
+!**********************************************************************************************
+!
+! Writes environment variables each time step
+!
+! By Jack Bartlett (29/05/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in) :: current_time
+integer, intent(in) :: n_files
+
+integer i
+
+!----------------------------------------------------------------------------------------------
+
+
 ! Write environment variables to end of environment_variables.out
 if (n_files==0) then
   open(99,file='output/environment_variables.out',status='replace')
 else
   open(99,file='output/environment_variables.out',status='old',position='append')
 end if
-write(99,1003) current_time, temperature, Pvap, Psat_l, Psat_i
+write(99,1002) current_time, temperature, Pvap, Psat_l, Psat_i
 close(99)
 
-!if (i_writesp==1) then
-!  open(99,file='pbe/out/psd_sp.out')
-!  do i=1,m
-!    eta(i) = moment(0)*v_m(i)/moment(1)
-!    psi(i) = nitemp(i)*moment(1)/moment(0)**2
-!    write(99,1002) eta(i),psi(i)
-!  end do
-!end if
 
-!open(99,file='soot.out')
-!do i=1,m
-!  write(99,1004) v_m(i), ni_soot(i)
-!end do
-!close(99)
+1002 format(5E20.10)
 
-1001 format(8E20.10)
-1002 format(2E20.10)
-1003 format(5E20.10)
-1004 format(2E20.10)
-
-end subroutine pbe_output
+end subroutine pbe_output_env
 
 !**********************************************************************************************
 
