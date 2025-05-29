@@ -70,7 +70,8 @@ do i_step = 1,n_steps
   ! Update soot activation
   call pbe_activation()
 
-  ! Integrate - only for functions which change ni over time (nucleation, growth, agg, frag)
+  ! Integrate - for processes which change over time (not just those which alter ni)
+  ! Pvap is reduced by growth here
   call pbe_integ(dt)
 
 
@@ -84,6 +85,10 @@ do i_step = 1,n_steps
     ! Droplets
     filename = "output/psd_droplet.out"
     call pbe_output_psd(ni_droplet, filename, current_time, n_files)
+
+    ! Crystals
+    filename = "output/psd_crystal.out"
+    call pbe_output_psd(ni_crystal, filename, current_time, n_files)
 
     ! Environment variables
     call pbe_output_env(current_time, n_files)

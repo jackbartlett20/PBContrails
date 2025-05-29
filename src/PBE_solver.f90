@@ -33,11 +33,23 @@ double precision, intent(in) :: dt
 
 double precision niprime(m),nitemp(m)
 double precision k1(m),k2(m),k3(m),k4(m)
-double precision r_m, J, sum_Jn, delta_supersaturation_l 
+double precision r_m, J, sum_Jn, delta_supersaturation_l, ice_germ_rate, freeze_ni
 
 integer index
 
 !----------------------------------------------------------------------------------------------
+
+! Droplet freezing
+! Ice germ rate is number of ice germs formed per droplet vol per second
+ice_germ_rate = 1.D6 * exp(-3.5714D0 * temperature + 858.719D0)
+do index=1,m
+  ! Condition to have >= 1 ice germ per droplet
+  if ((ice_germ_rate * v_m(index) * dt).ge.(1.D0)) then
+    ni_crystal(index) = ni_crystal(index) + ni_droplet(index)
+    ni_droplet(index) = 0.D0
+  end if
+end do
+
 
 if (solver_pbe == 1) then
 
@@ -71,7 +83,8 @@ else if (solver_pbe == 3) then
 
 end if
 
-! Deplete supersaturation
+
+! Deplete supersaturation due to droplet growth
 sum_Jn = 0.D0
 if (supersaturation_l>0.D0) then
   

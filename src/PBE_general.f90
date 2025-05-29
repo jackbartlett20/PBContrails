@@ -39,6 +39,7 @@ double precision, allocatable, dimension(:) :: d_m
 double precision, allocatable, dimension(:) :: nuc
 
 double precision, allocatable, dimension(:) :: ni_droplet
+double precision, allocatable, dimension(:) :: ni_crystal
 double precision, allocatable, dimension(:) :: ni_soot
 
 double precision v0,grid_lb,grid_rb
@@ -62,7 +63,7 @@ double precision n_sat
 double precision vapour_thermal_speed
 double precision diff_coeff
 
-! Soot initialisation
+! Soot initial distribution
 double precision n_soot,r_mean_soot,sigma_soot
 
 
@@ -294,8 +295,9 @@ if (break_const>0.) then
   call pbe_breakage_calc(2)
 end if
 
-! Initialise distribution
+! Initialise distributions
 ni_droplet = 0.D0
+ni_crystal = 0.D0
 
 
 end subroutine pbe_init
@@ -342,7 +344,7 @@ integer i
 !----------------------------------------------------------------------------------------------
 
 ! Allocate arrays
-allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),ni_droplet(m),ni_soot(m))
+allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),ni_droplet(m),ni_crystal(m),ni_soot(m))
 
 if (grid_type==1) then
 
@@ -414,7 +416,7 @@ subroutine inc_ratio(lb,rb,k,q)
 
 !**********************************************************************************************
 !
-! Calculation of common ratio in exponential grid
+! Calculation of common ratio in exponential grid (obsolete)
 !
 ! By Binxuan Sun
 ! 28/02/2018
@@ -779,7 +781,7 @@ subroutine pbe_deallocate()
 
 use pbe_mod
  
-deallocate(v,dv,v_m,d_m,nuc,ni_droplet,ni_soot)
+deallocate(v,dv,v_m,d_m,nuc,ni_droplet,ni_crystal,ni_soot)
 
 end subroutine pbe_deallocate
 
