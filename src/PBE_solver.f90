@@ -39,7 +39,7 @@ integer index
 
 !----------------------------------------------------------------------------------------------
 
-! Droplet freezing
+! Droplet freezing - should be in psr_pbe because instantaneous?
 ! Ice germ rate is number of ice germs formed per droplet vol per second
 ice_germ_rate = 1.D6 * exp(-3.5714D0 * temperature + 858.719D0)
 do index=1,m
@@ -82,6 +82,13 @@ else if (solver_pbe == 3) then
   ni_droplet = ni_droplet + (1.D0 / 6.D0) * k1 + (1.D0 / 3.D0) * k2 + (1.D0 / 3.D0) * k3 + (1.D0 / 6.D0) * k4
 
 end if
+
+! Cap at zero after growth
+do index = 1,m
+  if (ni_droplet(index) < 0.D0) then
+    ni_droplet(index) = 0.D0
+  end if
+end do
 
 
 ! Deplete supersaturation due to droplet growth
