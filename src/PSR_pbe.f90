@@ -10,15 +10,15 @@ subroutine psr_pbe()
 !
 !**********************************************************************************************
 
+use pbe_mod
+
 implicit none
 
-double precision, allocatable :: ni(:)
-
-double precision moment(0:1)
+!double precision moment(0:1)
 double precision int_time,tin,current_time,meansize,dt
 
 integer i,i_step,n_steps,iflag,flowflag,nin,i_write,n_write,n_files
-integer agg_kernel_update,n_pbe_grid
+integer agg_kernel_update
 
 character(len=30) :: filename
 
@@ -27,10 +27,9 @@ character(len=30) :: filename
 ! Initialisation
 
 ! Initialise PBE
-call pbe_read(n_pbe_grid)
-allocate(ni(n_pbe_grid))
+call pbe_read()
 call pbe_grid()
-call pbe_init(ni)
+call pbe_init()
 
 ! Read PSR input data
 open(30,file='psr/psr.in')
@@ -54,7 +53,7 @@ n_files = 0
 ! Integration
 
 ! Write initial moments
-call PBE_moments(ni,moment,meansize)
+!call PBE_moments(ni,moment,meansize)
 
 do i_step = 1,n_steps
 
@@ -72,17 +71,21 @@ do i_step = 1,n_steps
   end if
 
   ! Update soot activation
-  call pbe_activation(ni)
+  call pbe_activation()
 
   ! Integrate
-  call pbe_integ(ni,dt)
+  call pbe_integ(dt)
 
   ! Calculate moments
-  call pbe_moments(ni,moment,meansize)
+  !call pbe_moments(ni,moment,meansize)
 
   ! Write PSD
   if ((i_write==n_write).or.(i_step==n_steps)) then
     
+    ! Soot
+    filename = "output/psd_soot.out"
+    call pbe_output_psd(ni_soot, filename, current_time, n_files)
+
     ! Droplets
     filename = "output/psd_droplet.out"
     call pbe_output_psd(ni, filename, current_time, n_files)
@@ -100,7 +103,6 @@ end do
 !----------------------------------------------------------------------------------------------
 
 ! Deallocate arrays
-deallocate(ni)
 call PBE_deallocate()
 
 end subroutine psr_pbe

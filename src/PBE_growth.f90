@@ -8,7 +8,7 @@
 
 !**********************************************************************************************
 
-subroutine growth_tvd(ni, index, dt, n_sat, supersaturation_l, thermal_speed, diff_coeff,&
+subroutine growth_tvd(ani, index, dt, n_sat, supersaturation_l, thermal_speed, diff_coeff,&
                       &growth_source)
 
 !**********************************************************************************************
@@ -24,7 +24,8 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m), intent(in) :: ni
+double precision, dimension(m), intent(in) :: ani
+
 integer, intent(in)                        :: index
 double precision, intent(in)               :: dt ! only for Courant number check
 double precision, intent(in)               :: n_sat,supersaturation_l,thermal_speed,diff_coeff
@@ -70,32 +71,32 @@ if (g_termr>0.D0) then
   if (index==1) then
 
     gnl = 0.0D0
-    gnr = g_termr * 0.5 * (ni(1)+ni(2))
+    gnr = g_termr * 0.5 * (ani(1)+ani(2))
 
   else if (index==m) then
 
-    rl = (ni(m) - ni(m-1) + eps) / (ni(m-1) - ni(m-2) + eps)
+    rl = (ani(m) - ani(m-1) + eps) / (ani(m-1) - ani(m-2) + eps)
     phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
-    gnl = g_terml * (ni(m-1) + 0.5 * phi * (ni(m-1) - ni(m-2)))
-    gnr = g_termr * (ni(m) + 0.5*(ni(m) - ni(m-1)))
+    gnl = g_terml * (ani(m-1) + 0.5 * phi * (ani(m-1) - ani(m-2)))
+    gnr = g_termr * (ani(m) + 0.5*(ani(m) - ani(m-1)))
 
   else
 
     ! Fluxes at cell right surface
-    nl = ni(index-1)
-    nc = ni(index)
-    nr = ni(index+1)
+    nl = ani(index-1)
+    nc = ani(index)
+    nr = ani(index+1)
     rr = (nr - nc + eps) / (nc - nl + eps)
     phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
     gnr = g_termr * (nc + 0.5 * phi * (nc - nl))
 
     ! Fluxes at cell left surface
     if (index==2 ) then
-      gnl = g_terml * 0.5 * (ni(1)+ni(2))
+      gnl = g_terml * 0.5 * (ani(1)+ani(2))
     else
-      nl = ni(index-2)
-      nc = ni(index-1)
-      nr = ni(index)
+      nl = ani(index-2)
+      nc = ani(index-1)
+      nr = ani(index)
       rl = (nr - nc + eps) / (nc - nl + eps)
       phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
       gnl = g_terml * (nc + 0.5 * phi * (nc - nl))
@@ -107,34 +108,34 @@ else
   ! growth rate is along negative direction
   if (index==1) then
 
-    gnl = g_terml * (ni(1) + 0.5 * (ni(1) - ni(2)))
-    rr = (ni(1) - ni(2) + eps) / (ni(2) - ni(3) + eps)
+    gnl = g_terml * (ani(1) + 0.5 * (ani(1) - ani(2)))
+    rr = (ani(1) - ani(2) + eps) / (ani(2) - ani(3) + eps)
     phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
-    gnr = g_termr * (ni(2) + 0.5 * phi * (ni(2) - ni(3)))
+    gnr = g_termr * (ani(2) + 0.5 * phi * (ani(2) - ani(3)))
 
   else if (index==m) then
 
     gnr = 0
-    gnl = g_terml * 0.5 * (ni(m)+ni(m-1))
+    gnl = g_terml * 0.5 * (ani(m)+ani(m-1))
 
   else
 
     ! Fluxes at cell right surface
     if (index==m-1) then
-      gnr = g_termr * 0.5 * (ni(m)+ni(m-1))
+      gnr = g_termr * 0.5 * (ani(m)+ani(m-1))
     else
-      nl = ni(index)
-      nc = ni(index+1)
-      nr = ni(index+2)
+      nl = ani(index)
+      nc = ani(index+1)
+      nr = ani(index+2)
       rr = (nl - nc + eps) / (nc - nr + eps)
       phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
       gnr = g_termr * (nc + 0.5 * phi * (nc - nr))
     end if
 
     ! Fluxes at cell left surface
-    nl = ni(index-1)
-    nc = ni(index)
-    nr = ni(index+1)
+    nl = ani(index-1)
+    nc = ani(index)
+    nr = ani(index+1)
     rl = (nl - nc + eps) / (nc - nr + eps)
     phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
     gnl = g_terml * (nc + 0.5 * phi * (nc - nr))

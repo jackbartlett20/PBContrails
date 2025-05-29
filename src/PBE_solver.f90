@@ -9,7 +9,7 @@
 
 !**********************************************************************************************
 
-subroutine pbe_integ(ni,dt)
+subroutine pbe_integ(dt)
 
 !**********************************************************************************************
 !
@@ -29,7 +29,6 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m), intent(inout) :: ni
 double precision, intent(in)                  :: dt
 
 double precision niprime(m),nitemp(m)
@@ -77,7 +76,7 @@ end subroutine pbe_integ
 
 !**********************************************************************************************
 
-subroutine pbe_ydot(ni,niprime,dt)
+subroutine pbe_ydot(ani,niprime,dt)
 
 !**********************************************************************************************
 !
@@ -96,7 +95,7 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m), intent(in)  :: ni
+double precision, dimension(m), intent(in) :: ani
 double precision, dimension(m), intent(out) :: niprime
 
 double precision, intent(in) :: dt
@@ -132,14 +131,14 @@ if (supersaturation_l>0) then
   diff_coeff = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325D0 / P_ambient)
 
   do index = 1,m
-    call growth_tvd(ni, index, dt, n_sat, supersaturation_l, thermal_speed, diff_coeff,&
+    call growth_tvd(ani, index, dt, n_sat, supersaturation_l, thermal_speed, diff_coeff,&
                     &growth_source)
     niprime(index) = niprime(index) + growth_source
 
-    ! Calculate H2O flux to particles of size r_m
+    ! Calculate H2O flux to particles of size r_m - THIS SHOULD BE IN pbe_integ FOR OTHER SOLVERS TO WORK
     r_m = ((3.D0*v_m(index))/(4.D0*pi))**(1.D0/3.D0)
     call calc_J(r_m, n_sat, supersaturation_l, thermal_speed, diff_coeff, J)
-    sum_Jn = sum_Jn + J * ni(index) * dv(index) ! Last part to change to absolute number density
+    sum_Jn = sum_Jn + J * ani(index) * dv(index) ! Last part to change to absolute number density
   end do
 
   ! Reduce supersaturation

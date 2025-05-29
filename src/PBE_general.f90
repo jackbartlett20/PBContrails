@@ -37,6 +37,8 @@ double precision, allocatable, dimension(:) :: dv
 double precision, allocatable, dimension(:) :: v_m
 double precision, allocatable, dimension(:) :: d_m
 double precision, allocatable, dimension(:) :: nuc
+
+double precision, allocatable, dimension(:) :: ni
 double precision, allocatable, dimension(:) :: ni_soot
 
 double precision v0,grid_lb,grid_rb
@@ -173,11 +175,11 @@ end module gauss_mod
 
 !**********************************************************************************************
 
-subroutine pbe_read(n_pbe)
+subroutine pbe_read()
 
 !**********************************************************************************************
 !
-! Initialises PBE data
+! Reads PBE data
 !
 ! Stelios Rigopoulos 03/12/2014
 ! Modified 06/05/2017
@@ -189,8 +191,6 @@ subroutine pbe_read(n_pbe)
 use pbe_mod
 
 implicit none
-
-integer, intent(out) :: n_pbe
 
 integer i
 
@@ -222,7 +222,6 @@ read(30,*) grid_rb
 read(30,*) v0
 read(30,*) solver_pbe
 
-n_pbe = m
 
 end subroutine pbe_read
 
@@ -232,7 +231,7 @@ end subroutine pbe_read
 
 !**********************************************************************************************
 
-subroutine pbe_init(ni)
+subroutine pbe_init()
 
 !**********************************************************************************************
 !
@@ -251,10 +250,7 @@ use gauss_mod
 
 implicit none
 
-double precision, dimension(m), intent(inout) :: ni
-
 double precision r_m
-
 
 integer i
 
@@ -337,7 +333,7 @@ integer i
 !----------------------------------------------------------------------------------------------
 
 ! Allocate arrays
-allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),ni_soot(m))
+allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),ni(m),ni_soot(m))
 
 if (grid_type==1) then
 
@@ -542,7 +538,7 @@ end subroutine pbe_set_environment
 
 !**********************************************************************************************
 
-subroutine pbe_activation(ni)
+subroutine pbe_activation()
 
 !**********************************************************************************************
 !
@@ -555,8 +551,6 @@ subroutine pbe_activation(ni)
 use pbe_mod
 
 implicit none
-
-double precision, dimension(m), intent(inout) :: ni
 
 double precision r_act, v_act, sat_ratio_l
 
@@ -590,7 +584,7 @@ end subroutine pbe_activation
 
 !**********************************************************************************************
 
-subroutine pbe_moments(ni,moment,meansize)
+subroutine pbe_moments(ani,moment,meansize)
 
 !**********************************************************************************************
 !
@@ -606,7 +600,7 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m), intent(in)    :: ni
+double precision, dimension(m), intent(in)    :: ani
 double precision, dimension(0:1), intent(out) :: moment
 double precision, intent(out)                 :: meansize
 
@@ -620,13 +614,13 @@ moment(0) = 0.0
 moment(1) = 0.0
 
 do i=1,m
-  moment(0) = moment(0) + ni(i)*dv(i)
-  moment(1) = moment(1) + 0.5D0*(v(i-1)+v(i))*ni(i)*dv(i)
+  moment(0) = moment(0) + ani(i)*dv(i)
+  moment(1) = moment(1) + 0.5D0*(v(i-1)+v(i))*ani(i)*dv(i)
 end do
 
 M1_lp = 0.D0
 do i=m-5,m
-  M1_lp = M1_lp + 0.5D0*(v(i-1)+v(i))*ni(i)*dv(i)
+  M1_lp = M1_lp + 0.5D0*(v(i-1)+v(i))*ani(i)*dv(i)
 end do
 
 !lp = M1_lp/moment(1)
@@ -648,7 +642,7 @@ end subroutine pbe_moments
 
 !**********************************************************************************************
 
-subroutine pbe_output_psd(ni,filename,current_time,n_files)
+subroutine pbe_output_psd(ani,filename,current_time,n_files)
 
 !**********************************************************************************************
 !
@@ -662,7 +656,7 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m), intent(in) :: ni
+double precision, dimension(m), intent(in) :: ani
 character(len=30), intent(in) :: filename
 double precision, intent(in) :: current_time
 integer, intent(in) :: n_files
@@ -676,13 +670,13 @@ integer i
 
 !----------------------------------------------------------------------------------------------
 
-call pbe_moments(ni,moment,meansize)
+call pbe_moments(ani,moment,meansize)
 
 do i=1,m
-  if (abs(ni(i))<1.D-16) then
+  if (abs(ani(i))<1.D-16) then
     nitemp(i) = 0.D0
   else
-    nitemp(i) = ni(i)
+    nitemp(i) = ani(i)
   end if
 end do
 
@@ -765,7 +759,7 @@ subroutine pbe_deallocate()
 
 use pbe_mod
  
-deallocate(v,dv,v_m,d_m,nuc,ni_soot)
+deallocate(v,dv,v_m,d_m,nuc,ni,ni_soot)
 
 end subroutine pbe_deallocate
 
