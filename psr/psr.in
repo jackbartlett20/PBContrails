@@ -1,6 +1,6 @@
 PSR INPUT DATA
 
-1.E1                           ! Integration time (s) -> int_time
-1.E-5                           ! Time step (s) -> dt
+2.E0                           ! Integration time (s) -> int_time
+5.E-6                           ! Time step (s) -> dt
 0                               ! Kernel update on/off -> agg_kernel_update
-1000                             ! Interval for write-up (i.e. after how many time steps) -> n_write
+400                             ! Interval for write-up (i.e. after how many time steps) -> n_write

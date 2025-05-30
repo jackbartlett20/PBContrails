@@ -8,7 +8,7 @@
 
 !**********************************************************************************************
 
-subroutine growth_tvd(ani, index, dt, growth_source)
+subroutine growth_tvd(ani, index, supersaturation, dt, growth_source)
 
 !**********************************************************************************************
 !
@@ -26,6 +26,7 @@ implicit none
 double precision, dimension(m), intent(in) :: ani
 
 integer, intent(in)                        :: index
+double precision, intent(in)               :: supersaturation ! either wrt liquid or wrt ice
 double precision, intent(in)               :: dt ! only for Courant number check
 double precision, intent(out)              :: growth_source
 
@@ -45,9 +46,9 @@ parameter(eps = 1.D1*epsilon(1.D0))
 !**********************************************************************************************
 
 ! Growth rate at right boundary calculation
-call calc_growth_rate(index, g_termr)
+call calc_growth_rate(index, supersaturation, g_termr)
 ! Growth rate at left boundary calculation
-call calc_growth_rate(index-1, g_terml)
+call calc_growth_rate(index-1, supersaturation, g_terml)
 
 ! Courant-Friedrichs-Lewy (CFL) condition (C <= 1 for PBE)
 courant = g_termr * dt / dv(index)
@@ -162,11 +163,11 @@ end subroutine growth_tvd
 
 !**********************************************************************************************
 
-subroutine calc_growth_rate(index, g_term)
+subroutine calc_growth_rate(index, supersaturation, g_term)
 
 !**********************************************************************************************
 !
-! Calculates growth rate at indexed boundary
+! Calculates growth rate at indexed boundary (droplet or crystal)
 !
 ! By Jack Bartlett (27/05/2025)
 !
@@ -177,6 +178,7 @@ use pbe_mod
 implicit none
 
 integer, intent(in) :: index
+double precision, intent(in) :: supersaturation ! either wrt liquid or wrt ice
 double precision, intent(out) :: g_term
 
 double precision r, J
@@ -185,7 +187,7 @@ double precision r, J
 
 r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0) ! Find radius of indexed boundary
 
-call calc_J(r, J)
+call calc_J(r, supersaturation, J)
 
 g_term = water_molecular_vol * J
 
@@ -197,11 +199,11 @@ end subroutine calc_growth_rate
 
 !**********************************************************************************************
 
-subroutine calc_J(r, J)
+subroutine calc_J(r, supersaturation, J)
 
 !**********************************************************************************************
 !
-! Calculates J (flux of water molecules to droplets of size r)
+! Calculates J (flux of water molecules to droplets/crystals of size r)
 !
 ! By Jack Bartlett (28/05/2025)
 !
@@ -212,6 +214,7 @@ use pbe_mod
 implicit none
 
 double precision, intent(in) :: r
+double precision, intent(in) :: supersaturation ! either wrt liquid or wrt ice
 double precision, intent(out) :: J
 
 double precision accom_coeff, correction_factor
@@ -222,7 +225,7 @@ accom_coeff = 1.D0
 
 correction_factor = 1 + accom_coeff * vapour_thermal_speed * r / (4.D0 * diff_coeff)
 
-J = (pi * r**2 * accom_coeff * vapour_thermal_speed * supersaturation_l * n_sat) / correction_factor
+J = (pi * r**2 * accom_coeff * vapour_thermal_speed * supersaturation * n_sat) / correction_factor
 
 end subroutine calc_J
 
