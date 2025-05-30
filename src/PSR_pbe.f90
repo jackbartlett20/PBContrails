@@ -67,6 +67,9 @@ do i_step = 1,n_steps
     call PBE_agg_beta(2)
   end if
 
+  ! Update freezing (before soot so a soot particle cannot immediately turn to ice)
+  call pbe_freezing(dt)
+
   ! Update soot activation
   call pbe_activation()
 

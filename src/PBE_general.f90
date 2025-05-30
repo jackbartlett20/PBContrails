@@ -266,7 +266,7 @@ integer i
 
 !----------------------------------------------------------------------------------------------
 
-! Initialise temperature and vapour pressure
+! Initialise temperature, vapour pressure, and other environment variables
 call pbe_set_environment(0.D0)
 
 ! Initialise soot
@@ -553,6 +553,47 @@ diff_coeff = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325D0 / P_ambient)
 
 
 end subroutine pbe_set_environment
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_freezing(dt)
+
+!**********************************************************************************************
+!
+! Update droplet freezing each time step
+!
+! By Jack Bartlett (30/05/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in) :: dt
+
+double precision ice_germ_rate
+
+integer index
+
+!----------------------------------------------------------------------------------------------
+
+! Ice germ rate is number of ice germs formed per droplet vol per second
+ice_germ_rate = 1.D6 * exp(-3.5714D0 * temperature + 858.719D0)
+
+do index=1,m
+  ! Condition to have >= 1 ice germ per droplet
+  if ((ice_germ_rate * v_m(index) * dt).ge.(1.D0)) then
+    ni_crystal(index) = ni_crystal(index) + ni_droplet(index)
+    ni_droplet(index) = 0.D0
+  end if
+end do
+
+end subroutine pbe_freezing
 
 !**********************************************************************************************
 
