@@ -6,7 +6,7 @@ PBE INPUT DATA
 215.                            ! Ambient temperature (K) -> T_ambient
 2.E4                            ! Air pressure (Pa) -> P_ambient
 400.                            ! Vapour pressure in exhaust (Pa) -> Pvap_exhaust
-6.7                             ! Ambient vapour pressure (Pa) -> Pvap_ambient
+2.0                             ! Ambient vapour pressure (Pa) -> Pvap_ambient
 8.E11                           ! Soot particle concentration in exhaust (m-3) -> n_soot
 20.E-9                          ! Mean soot particle radius (m) -> r_mean_soot
 1.823E-1                        ! Standard deviation of soot particle radius in log-space (1.2 nm -> 0.182) -> sigma_soot

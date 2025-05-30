@@ -17,7 +17,8 @@ implicit none
 !double precision moment(0:1)
 double precision int_time,tin,current_time,meansize,dt
 
-integer i,i_step,n_steps,iflag,flowflag,nin,i_write,n_write,n_files
+integer i,i_step,n_steps,iflag,flowflag,nin,i_write,n_write,total_writes
+logical first_write
 integer agg_kernel_update
 
 character(len=30) :: filename
@@ -39,14 +40,15 @@ end do
 read(30,*) int_time
 read(30,*) dt
 read(30,*) agg_kernel_update
-read(30,*) n_write
+read(30,*) total_writes
 close(30)
 
 ! Initialise PSR integration
 n_steps = int_time/dt
+n_write = n_steps/total_writes
 current_time= 0.D0
 i_write = 1
-n_files = 0
+first_write = .true.
 
 !----------------------------------------------------------------------------------------------
 
@@ -83,20 +85,20 @@ do i_step = 1,n_steps
     
     ! Soot
     filename = "output/psd_soot.out"
-    call pbe_output_psd(ni_soot, filename, current_time, n_files)
+    call pbe_output_psd(ni_soot, filename, current_time, first_write)
 
     ! Droplets
     filename = "output/psd_droplet.out"
-    call pbe_output_psd(ni_droplet, filename, current_time, n_files)
+    call pbe_output_psd(ni_droplet, filename, current_time, first_write)
 
     ! Crystals
     filename = "output/psd_crystal.out"
-    call pbe_output_psd(ni_crystal, filename, current_time, n_files)
+    call pbe_output_psd(ni_crystal, filename, current_time, first_write)
 
     ! Environment variables
-    call pbe_output_env(current_time, n_files)
+    call pbe_output_env(current_time, first_write)
 
-    n_files = n_files + 1
+    first_write = .false.
     i_write = 0
   end if
   i_write = i_write + 1

@@ -518,7 +518,6 @@ double precision dilution_factor, temperature_new
 if (current_time.eq.0.D0) then
   temperature = T_exhaust
   Pvap = Pvap_exhaust
-  mixing_grad = (Pvap_exhaust - Pvap_ambient) / (T_exhaust - T_ambient) ! Schumann's G
 
 ! Updating
 else
@@ -528,6 +527,8 @@ else
   else
     dilution_factor = (tau_m / current_time)**(0.9D0)
   end if
+
+  mixing_grad = (Pvap - Pvap_ambient) / (temperature - T_ambient) ! Schumann's G
 
   temperature_new = T_ambient + (T_exhaust - T_ambient) * dilution_factor
   ! Pvap can't be calculated the same way because it is also updated by growth
@@ -544,7 +545,7 @@ Psat_i = 6.108D2*exp(21.87D0 * (temperature - 273.15D0)/(temperature - 7.66D0))
 supersaturation_l = Pvap/Psat_l - 1.D0
 supersaturation_i = Pvap/Psat_i - 1.D0
 
-! H2O number concentration at water saturation - not sure this is correct
+! H2O number concentration at water saturation - not totally sure this is correct
 n_sat = avogadro_constant * Pvap / (ideal_gas_constant * temperature)
 
 vapour_thermal_speed = sqrt(3 * boltzmann_constant * temperature / water_molecular_mass)
@@ -705,7 +706,7 @@ end subroutine pbe_moments
 
 !**********************************************************************************************
 
-subroutine pbe_output_psd(ani,filename,current_time,n_files)
+subroutine pbe_output_psd(ani,filename,current_time,first_write)
 
 !**********************************************************************************************
 !
@@ -722,7 +723,7 @@ implicit none
 double precision, dimension(m), intent(in) :: ani
 character(len=30), intent(in) :: filename
 double precision, intent(in) :: current_time
-integer, intent(in) :: n_files
+logical, intent(in) :: first_write
 
 double precision :: nitemp(m)
 double precision, dimension(0:1) :: moment
@@ -744,7 +745,7 @@ do i=1,m
 end do
 
 
-if (n_files==0) then
+if (first_write) then
   open(99,file=filename,status='replace')
 else
   open(99,file=filename,status='old',position='append')
@@ -766,7 +767,7 @@ end subroutine pbe_output_psd
 
 !**********************************************************************************************
 
-subroutine pbe_output_env(current_time,n_files)
+subroutine pbe_output_env(current_time,first_write)
 
 !**********************************************************************************************
 !
@@ -781,7 +782,7 @@ use pbe_mod
 implicit none
 
 double precision, intent(in) :: current_time
-integer, intent(in) :: n_files
+logical, intent(in) :: first_write
 
 integer i
 
@@ -789,7 +790,7 @@ integer i
 
 
 ! Write environment variables to end of environment_variables.out
-if (n_files==0) then
+if (first_write) then
   open(99,file='output/environment_variables.out',status='replace')
 else
   open(99,file='output/environment_variables.out',status='old',position='append')
