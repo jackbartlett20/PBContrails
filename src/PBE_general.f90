@@ -36,11 +36,14 @@ double precision, allocatable, dimension(:) :: v
 double precision, allocatable, dimension(:) :: dv
 double precision, allocatable, dimension(:) :: v_m
 double precision, allocatable, dimension(:) :: d_m
+double precision, allocatable, dimension(:) :: vf
+double precision, allocatable, dimension(:) :: vf_m
 double precision, allocatable, dimension(:) :: nuc
 
 double precision, allocatable, dimension(:) :: ni_droplet
 double precision, allocatable, dimension(:) :: ni_crystal
 double precision, allocatable, dimension(:) :: ni_soot
+double precision, allocatable, dimension(:,:,:,:) :: ni
 
 double precision v0,grid_lb,grid_rb
 double precision agg_kernel_const
@@ -65,6 +68,13 @@ double precision diff_coeff
 
 ! Soot initial distribution
 double precision n_soot,r_mean_soot,sigma_soot
+
+! Particle composition parameters
+integer n_vf
+double precision vf_width
+integer, parameter :: n_components = 4
+double precision, dimension(n_components-1) :: comp_densities
+double precision, dimension(n_components-1) :: comp_kappas
 
 
 ! Double precision kind
@@ -231,6 +241,19 @@ read(30,*) grid_lb
 read(30,*) grid_rb
 read(30,*) v0
 read(30,*) solver_pbe
+read(30,*) n_vf
+close(30)
+
+! Read component parameters
+
+open(30,file='pbe/components.in')
+do i=1,4
+  read(30,*)
+end do
+do i=1,(n_components-1)
+  read(30,*) comp_densities(i), comp_kappas(i)
+end do
+close(30)
 
 
 end subroutine pbe_read
@@ -261,8 +284,11 @@ use gauss_mod
 implicit none
 
 double precision r_m
+double precision n_tot, r_mean, sigma, vf1, vf2, vf3, vf4
 
-integer i
+character(len=256) :: line
+
+integer i, i_vf1, i_vf2, i_vf3
 
 !----------------------------------------------------------------------------------------------
 
@@ -276,6 +302,60 @@ do i=1,m
   & exp(-(log(r_m/r_mean_soot))**2.D0/(2.D0*sigma_soot**2.D0))
   ! scaling to per interval width * total number density * log-normal distribution
 end do
+
+
+! Initialise particle composition
+
+ni = 0.D0
+
+open(30,file='pbe/species.in')
+do i=1,4
+  read(30,*)
+end do
+
+do
+  read(30, fmt='(A)') line ! fmt ensures the whole line is read as a string
+
+  if (trim(line) == "END") then
+    exit
+  end if
+
+  read(line, fmt=*) n_tot, r_mean, sigma, vf1, vf2, vf3, vf4
+
+  if ((vf1+vf2+vf3+vf4 < 0.9999).or.(vf1+vf2+vf3+vf4 > 1.0001)) then
+    write(*,*) "Volume fractions for a species must sum to 1. Stopping."
+    stop
+  end if
+
+  ! Determine relevant volume fraction intervals
+  do i=1,n_vf
+    if ((vf1.ge.vf(i-1)).and.(vf1.le.vf(i))) then
+      i_vf1 = i
+    end if
+    if ((vf2.ge.vf(i-1)).and.(vf2.le.vf(i))) then
+      i_vf2 = i
+    end if
+    if ((vf3.ge.vf(i-1)).and.(vf3.le.vf(i))) then
+      i_vf3 = i
+    end if
+  end do
+  write(*,*) vf_m(i_vf1), vf_m(i_vf2), vf_m(i_vf3)
+
+  stop
+
+  ! 
+  do i=1,m
+    r_m = d_m(i)/2.D0
+    ni(i,i_vf1,i_vf2,i_vf3) = ni(i,i_vf1,i_vf2,i_vf3) + (1.D0/(dv(i)*vf_width**3)) * &
+    & n_tot * (1.D0/(sqrt(2.D0*pi)*sigma)) * exp(-(log(r_m/r_mean))**2.D0/(2.D0*sigma**2.D0))
+    ! scaling to per interval width * total number density * log-normal distribution
+  end do
+
+end do
+close(30)
+
+stop
+
 
 ! Initialise nucleation
 nuc = 0.D0
@@ -345,6 +425,9 @@ integer i
 
 ! Allocate arrays
 allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),ni_droplet(m),ni_crystal(m),ni_soot(m))
+allocate(vf(0:n_vf), vf_m(n_vf))
+write(*,*) "Creating array of size ",(8*m*n_vf**3/(1000**2))," MB."
+allocate(ni(m,n_vf,n_vf,n_vf))
 
 if (grid_type==1) then
 
@@ -402,6 +485,19 @@ end do
 ! Determine diameters of mid-points
 do i=1,m
   d_m(i) = (6.D0/pi*v_m(i))**(1.D0/3.D0)
+end do
+
+! Calculate volume fraction dimension
+vf_width = 1./n_vf
+vf(0) = 0.
+do i=1,n_vf
+  vf(i) = vf(i-1) + vf_width
+end do
+
+! Determine volume fraction mid-points
+vf_m(1) = vf_width/2.
+do i=2,n_vf
+  vf_m(i) = vf_m(i-1) + vf_width
 end do
 
 end subroutine pbe_grid
@@ -824,6 +920,8 @@ subroutine pbe_deallocate()
 use pbe_mod
  
 deallocate(v,dv,v_m,d_m,nuc,ni_droplet,ni_crystal,ni_soot)
+deallocate(vf, vf_m)
+deallocate(ni)
 
 end subroutine pbe_deallocate
 
