@@ -47,6 +47,10 @@ current_time= 0.D0
 i_write = 1
 first_write = .true.
 
+! Temporary:
+call pbe_output_general_psd(current_time, first_write)
+first_write = .false.
+
 !----------------------------------------------------------------------------------------------
 
 ! Integration
@@ -75,7 +79,7 @@ do i_step = 1,n_steps
 
   ! Integrate - for processes which change over time (not just those which alter ni)
   ! Pvap is reduced by growth here
-  !call pbe_integ(dt)
+  call pbe_integ(dt)
 
 
   ! Write PSD

@@ -19,7 +19,6 @@ PBE INPUT DATA
 4.E-21                          ! Maximum size in grid (m3) -> grid_rb
 20                             ! Number of volume fraction intervals -> n_vf
 1.                              ! Volume of nuclei -> v0 (obsolete)
-1                               ! Integration method -> solver_pbe
 
 Aggregation kernels:
 0. No aggregation
@@ -37,8 +36,3 @@ Uniform binary is currently implemented, for other models edit breakage_fcn
 Grid types:
 1. Geometric
 2. Uniform
-
-Integration methods:
-1. Explicit Euler
-2. 2nd order Runge-Kutta
-3. 4th order Runge-Kutta

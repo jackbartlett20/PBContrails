@@ -50,7 +50,7 @@ double precision agg_kernel_const
 double precision break_const
 
 integer m,grid_type
-integer i_gm,solver_pbe
+integer i_gm
 integer agg_kernel
 integer growth_function
 integer order_of_gq
@@ -86,7 +86,7 @@ real(kind=dp), parameter :: pi = 3.141592654D0
 ! Physical constants
 real(kind=dp), parameter :: ideal_gas_constant = 8.314D0 ! (J mol-1 K-1)
 real(kind=dp), parameter :: boltzmann_constant = 1.380649D-23 ! (J K-1)
-real(kind=dp), parameter :: water_molar_mass = 0.018015D0 ! (kg mol-1)
+real(kind=dp), parameter :: water_molar_mass = 0.01801528D0 ! (kg mol-1)
 real(kind=dp), parameter :: avogadro_constant = 6.02214D23 ! (mol-1)
 real(kind=dp), parameter :: water_molecular_vol = 2.97D-29 ! (m3)
 real(kind=dp), parameter :: water_molecular_mass = 2.99D-26 ! (kg)
@@ -241,7 +241,6 @@ read(30,*) grid_lb
 read(30,*) grid_rb
 read(30,*) n_vf
 read(30,*) v0
-read(30,*) solver_pbe
 close(30)
 
 ! Read component parameters
@@ -345,6 +344,10 @@ do
 
 end do
 close(30)
+
+if (sum(ni) /= 0.D0) then
+  write(*,*) "not all zero"
+end if
 
 
 ! Initialise ice crystal distribution

@@ -31,135 +31,69 @@ implicit none
 
 double precision, intent(in) :: dt
 
-double precision niprime(m),nitemp(m) ! used for both droplets and crystals
-double precision k1(m),k2(m),k3(m),k4(m) ! used for both droplets and crystals
-double precision r_m, J, sum_Jn, delta_supersaturation_l, delta_supersaturation_i
+double precision, allocatable, dimension(:,:,:,:) :: niprime
+double precision sum_VG ! sum of volume times growth source
+double precision r_m, J, sum_Jn, delta_supersaturation_l, delta_supersaturation_i ! now only used for crystals
 
 integer index
 
 !----------------------------------------------------------------------------------------------
 
-! DROPLETS
+! GENERAL PARTICLES
 
-if (solver_pbe == 1) then
+allocate(niprime(m,n_vf,n_vf,n_vf))
 
-  !Euler explicit
-  call pbe_ydot_droplet(ni_droplet,niprime,dt)
-  ni_droplet = ni_droplet + niprime * dt
-
-else if (solver_pbe == 2) then
-
-  !Runge-Kutta 2nd order
-  call pbe_ydot_droplet(ni_droplet,niprime,dt)
-  nitemp = ni_droplet + 0.5D0 * niprime * dt
-  call pbe_ydot_droplet(nitemp,niprime,dt)
-  ni_droplet = ni_droplet + niprime * dt
-
-else if (solver_pbe == 3) then
-
-  !Runge-Kutta 4th order
-  call pbe_ydot_droplet(ni_droplet,niprime,dt)
-  k1 = niprime * dt
-  nitemp = ni_droplet + 0.5D0 * k1
-  call pbe_ydot_droplet(nitemp,niprime,dt)
-  k2 = niprime * dt
-  nitemp = ni_droplet + 0.5D0 * k2
-  call pbe_ydot_droplet(nitemp,niprime,dt)
-  k3 = niprime * dt
-  nitemp = ni_droplet + k3
-  call pbe_ydot_droplet(nitemp,niprime,dt)
-  k4 = niprime * dt
-  ni_droplet = ni_droplet + (1.D0 / 6.D0) * k1 + (1.D0 / 3.D0) * k2 + (1.D0 / 3.D0) * k3 + (1.D0 / 6.D0) * k4
-
-end if
+!Euler explicit
+call pbe_ydot_general(niprime,dt,sum_VG)
+ni = ni + niprime * dt
 
 ! Cap at zero after growth
-do index = 1,m
-  if (ni_droplet(index) < 0.D0) then
-    ni_droplet(index) = 0.D0
-  end if
-end do
+where (ni < 0.D0)
+  ni = 0.D0
+end where
 
+! Adjust water vapour due to droplet growth
+Pvap = Pvap + ((sum_VG / water_molecular_vol) * boltzmann_constant * temperature) * dt
 
-! Deplete supersaturation due to droplet growth
-sum_Jn = 0.D0
-if (supersaturation_l>0.D0) then
-  
-  do index=1,m
-    ! Calculate H2O flux to particles of size r_m
-    r_m = ((3.D0*v_m(index))/(4.D0*pi))**(1.D0/3.D0)
-    call calc_J(r_m, supersaturation_l, J)
-    sum_Jn = sum_Jn + J * ni_droplet(index) * dv(index) ! Last part to change to absolute number density
-  end do
-
-  delta_supersaturation_l = (- sum_Jn / n_sat) * dt ! in brackets is ds/dt
-  Pvap = Pvap + delta_supersaturation_l * Psat_l
-  if (Pvap<0.D0) then
-    Pvap = 0.D0 ! just in case
-  end if
+if (Pvap<0.D0) then
+  Pvap = 0.D0 ! just in case
 end if
+
+deallocate(niprime)
 
 !----------------------------------------------------------------------------------------------
 
 ! CRYSTALS
 
-if (solver_pbe == 1) then
-
-  !Euler explicit
-  call pbe_ydot_crystal(ni_crystal,niprime,dt)
-  ni_crystal = ni_crystal + niprime * dt
-
-else if (solver_pbe == 2) then
-
-  !Runge-Kutta 2nd order
-  call pbe_ydot_crystal(ni_crystal,niprime,dt)
-  nitemp = ni_crystal + 0.5D0 * niprime * dt
-  call pbe_ydot_crystal(nitemp,niprime,dt)
-  ni_crystal = ni_crystal + niprime * dt
-
-else if (solver_pbe == 3) then
-
-  !Runge-Kutta 4th order
-  call pbe_ydot_crystal(ni_crystal,niprime,dt)
-  k1 = niprime * dt
-  nitemp = ni_crystal + 0.5D0 * k1
-  call pbe_ydot_crystal(nitemp,niprime,dt)
-  k2 = niprime * dt
-  nitemp = ni_crystal + 0.5D0 * k2
-  call pbe_ydot_crystal(nitemp,niprime,dt)
-  k3 = niprime * dt
-  nitemp = ni_crystal + k3
-  call pbe_ydot_crystal(nitemp,niprime,dt)
-  k4 = niprime * dt
-  ni_crystal = ni_crystal + (1.D0 / 6.D0) * k1 + (1.D0 / 3.D0) * k2 + (1.D0 / 3.D0) * k3 + (1.D0 / 6.D0) * k4
-
-end if
+!Euler explicit
+!call pbe_ydot_crystal(niprime,dt)
+!ni_crystal = ni_crystal + niprime * dt
 
 ! Cap at zero after growth
-do index = 1,m
-  if (ni_crystal(index) < 0.D0) then
-    ni_crystal(index) = 0.D0
-  end if
-end do
+!do index = 1,m
+!  if (ni_crystal(index) < 0.D0) then
+!    ni_crystal(index) = 0.D0
+!  end if
+!end do
 
 
 ! Deplete supersaturation due to crystal growth
-sum_Jn = 0.D0
-if (supersaturation_i>0.D0) then
-  
-  do index=1,m
-    ! Calculate H2O flux to particles of size r_m
-    r_m = ((3.D0*v_m(index))/(4.D0*pi))**(1.D0/3.D0)
-    call calc_J(r_m, supersaturation_i, J)
-    sum_Jn = sum_Jn + J * ni_crystal(index) * dv(index) ! Last part to change to absolute number density
-  end do
-
-  delta_supersaturation_i = (- sum_Jn / n_sat) * dt ! in brackets is ds/dt
-  Pvap = Pvap + delta_supersaturation_i * Psat_i
-  if (Pvap<0.D0) then
-    Pvap = 0.D0 ! just in case
-  end if
-end if
+!sum_Jn = 0.D0
+!if (supersaturation_i>0.D0) then
+!  
+!  do index=1,m
+!    ! Calculate H2O flux to particles of size r_m
+!    r_m = ((3.D0*v_m(index))/(4.D0*pi))**(1.D0/3.D0)
+!    call calc_J(r_m, supersaturation_i, J)
+!    sum_Jn = sum_Jn + J * ni_crystal(index) * dv(index) ! Last part to change to absolute number density
+!  end do
+!
+!  delta_supersaturation_i = (- sum_Jn / n_sat) * dt ! in brackets is ds/dt
+!  Pvap = Pvap + delta_supersaturation_i * Psat_i
+!  if (Pvap<0.D0) then
+!    Pvap = 0.D0 ! just in case
+!  end if
+!end if
 
 end subroutine pbe_integ
 
@@ -169,14 +103,14 @@ end subroutine pbe_integ
 
 !**********************************************************************************************
 
-subroutine pbe_ydot_droplet(ni,niprime,dt)
+subroutine pbe_ydot_general(niprime,dt,sum_VG)
 
 !**********************************************************************************************
 !
 ! Calculates the right hand side of the ODEs to be integrated
 !
 ! By Stelios Rigopoulos
-! Modified by Jack Bartlett (30/05/2025)
+! Modified by Jack Bartlett (10/06/2025)
 !
 !**********************************************************************************************
 
@@ -184,16 +118,15 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m), intent(in) :: ni
-double precision, dimension(m), intent(out) :: niprime
-
+double precision, dimension(m,n_vf,n_vf,n_vf), intent(out) :: niprime
 double precision, intent(in) :: dt
+double precision, intent(out) :: sum_VG ! sum of volume times growth source
 
-double precision dn(m)
+double precision growth_source,growth_mass_source,params(1),growth_rate
+double precision new_V,vf1,vf2,vf3
 
-double precision growth_source,growth_mass_source,params(1)
-
-integer index
+integer, dimension(4) :: indices, new_indices
+integer i1,i2,i3,i4,index
 
 !----------------------------------------------------------------------------------------------
 
@@ -206,15 +139,52 @@ params(1) = 0.
 
 
 ! Droplet growth
-if (supersaturation_l>0) then
+do i1 = 1,m
+  do i2 = 1,n_vf
+    do i3 = 1,n_vf
+      do i4 = 1,n_vf
+        indices = (/i1,i2,i3,i4/)
+        call calc_growth_rate_liquid(indices, growth_rate)
+        new_V = v_m(indices(1)) + (growth_rate * dt)
+        vf1 = vf_m(indices(2)) * (v_m(indices(1)) / new_V) ! nvPM
+        vf2 = vf_m(indices(3)) * (v_m(indices(1)) / new_V) ! H2SO4
+        vf3 = vf_m(indices(4)) * (v_m(indices(1)) / new_V) ! organics
 
-  do index = 1,m
-    call growth_tvd(ni, index, supersaturation_l, dt, growth_source)
-    niprime(index) = niprime(index) + growth_source
+        ! Determine new intervals
+        do index=1,m
+          if ((new_V.ge.v(index-1)).and.(new_V.le.v(index))) then
+            new_indices(1) = index
+          end if
+        end do
+        do index=1,n_vf
+          if ((vf1.ge.vf(index-1)).and.(vf1.le.vf(index))) then
+            new_indices(2) = index
+          end if
+          if ((vf2.ge.vf(index-1)).and.(vf2.le.vf(index))) then
+            new_indices(3) = index
+          end if
+          if ((vf3.ge.vf(index-1)).and.(vf3.le.vf(index))) then
+            new_indices(4) = index
+          end if
+        end do
+
+        !call growth_tvd_general(indices, dt, growth_source)
+        !niprime(indices(1), indices(2), indices(3), indices(4)) = &
+        !& niprime(indices(1), indices(2), indices(3), indices(4)) + growth_source
+        
+        sum_VG = sum_VG + growth_rate * ni(indices(1), indices(2), indices(3), indices(4))
+
+        ! Take everything in current indices and move to new indices
+        if ((new_indices(1) /= indices(1)).or.(new_indices(2) /= indices(2)).or.(new_indices(3) /= indices(3)).or.(new_indices(4) /= indices(4))) then
+          ni(new_indices(1), new_indices(2), new_indices(3), new_indices(4)) = &
+          & ni(new_indices(1), new_indices(2), new_indices(3), new_indices(4)) + &
+          & ni(indices(1), indices(2), indices(3), indices(4))
+          ni(indices(1), indices(2), indices(3), indices(4)) = 0.D0
+        end if
+      end do
+    end do
   end do
-
-  ! Else niprime(index) does not change
-end if
+end do
 
 
 !Aggregation
@@ -230,7 +200,7 @@ if (break_const>0.) then
   call pbe_breakage_cfv(niprime,ni)
 end if
 
-end subroutine pbe_ydot_droplet
+end subroutine pbe_ydot_general
 
 !**********************************************************************************************
 
@@ -238,7 +208,7 @@ end subroutine pbe_ydot_droplet
 
 !**********************************************************************************************
 
-subroutine pbe_ydot_crystal(ni,niprime,dt)
+subroutine pbe_ydot_crystal(niprime,dt)
 
 !**********************************************************************************************
 !
@@ -253,12 +223,9 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m), intent(in) :: ni
 double precision, dimension(m), intent(out) :: niprime
 
 double precision, intent(in) :: dt
-
-double precision dn(m)
 
 double precision growth_source,growth_mass_source,params(1)
 
@@ -278,7 +245,8 @@ params(1) = 0.
 if (supersaturation_i>0) then
 
   do index = 1,m
-    call growth_tvd(ni, index, supersaturation_i, dt, growth_source)
+    ! growth_tvd has been modified to only work with crystals to allow compile
+    call growth_tvd(ni_crystal, index, supersaturation_i, dt, growth_source)
     niprime(index) = niprime(index) + growth_source
   end do
 
@@ -291,12 +259,12 @@ if (agg_kernel>0) then
   ! CFV formulation of Liu and Rigopoulos (2019)
   ! Note 1: current value of niprime is augmented within pbe_agg_cfv
   ! Note 2: contracting grid is not implemented
-  call pbe_agg_cfv(dv,v_m,ni,niprime)
+  call pbe_agg_cfv(dv,v_m,ni_crystal,niprime)
 end if
 
 !Fragmentation
 if (break_const>0.) then
-  call pbe_breakage_cfv(niprime,ni)
+  call pbe_breakage_cfv(niprime,ni_crystal)
 end if
 
 end subroutine pbe_ydot_crystal
