@@ -346,7 +346,6 @@ do
 end do
 close(30)
 
-stop
 
 ! Initialise ice crystal distribution
 ni_crystal = 0.D0
@@ -687,8 +686,8 @@ ice_germ_rate = 1.D6 * exp(-3.5714D0 * temperature + 858.719D0)
 do index=1,m
   ! Condition to have >= 1 ice germ per droplet
   if ((ice_germ_rate * v_m(index) * dt).ge.(1.D0)) then
-    ni_crystal(index) = ni_crystal(index) + ni_droplet(index)
-    ni_droplet(index) = 0.D0
+    ni_crystal(index) = ni_crystal(index) + vf_width**3 * sum(ni(index,:,:,:))
+    ni(index,:,:,:) = 0.D0
   end if
 end do
 
@@ -832,7 +831,7 @@ integer i
 
 !----------------------------------------------------------------------------------------------
 
-call pbe_moments(ani,moment,meansize)
+call pbe_moments(nitemp,moment,meansize)
 
 do i=1,m
   if (abs(ani(i))<1.D-16) then
@@ -858,6 +857,127 @@ close(99)
 1001 format(8E20.10)
 
 end subroutine pbe_output_psd
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_output_general_psd(current_time,first_write)
+
+!**********************************************************************************************
+!
+! Writes general particle PSD
+!
+! By Jack Bartlett (10/06/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in) :: current_time
+logical, intent(in) :: first_write
+
+double precision :: nitemp(m)
+double precision, dimension(0:1) :: moment
+
+double precision meansize
+
+integer i
+
+!----------------------------------------------------------------------------------------------
+
+! Integrate over component dimensions
+do i=1,m
+  nitemp(i) = vf_width**3 * sum(ni(i,:,:,:))
+end do
+
+call pbe_moments(nitemp,moment,meansize)
+
+do i=1,m
+  if (abs(nitemp(i))<1.D-16) then
+    nitemp(i) = 0.D0
+  end if
+end do
+
+
+if (first_write) then
+  open(99,file='output/psd_general.out',status='replace')
+else
+  open(99,file='output/psd_general.out',status='old',position='append')
+end if
+do i=1,m
+  write(99,1001) current_time, v_m(i), dv(i), d_m(i), nitemp(i), &
+  & nitemp(i)*dv(i)/moment(0), v_m(i)*nitemp(i), v_m(i)*nitemp(i)*dv(i)/moment(1)
+end do
+close(99)
+
+
+1001 format(8E20.10)
+
+end subroutine pbe_output_general_psd
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_output_crystal_psd(current_time,first_write)
+
+!**********************************************************************************************
+!
+! Writes ice crystal PSD
+!
+! By Jack Bartlett (10/06/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in) :: current_time
+logical, intent(in) :: first_write
+
+double precision :: nitemp(m)
+double precision, dimension(0:1) :: moment
+
+double precision meansize
+
+integer i
+
+!----------------------------------------------------------------------------------------------
+
+nitemp = ni_crystal
+
+call pbe_moments(nitemp,moment,meansize)
+
+do i=1,m
+  if (abs(nitemp(i))<1.D-16) then
+    nitemp(i) = 0.D0
+  end if
+end do
+
+
+if (first_write) then
+  open(99,file='output/psd_crystal.out',status='replace')
+else
+  open(99,file='output/psd_crystal.out',status='old',position='append')
+end if
+do i=1,m
+  write(99,1001) current_time, v_m(i), dv(i), d_m(i), nitemp(i), &
+  & nitemp(i)*dv(i)/moment(0), v_m(i)*nitemp(i), v_m(i)*nitemp(i)*dv(i)/moment(1)
+end do
+close(99)
+
+
+1001 format(8E20.10)
+
+end subroutine pbe_output_crystal_psd
 
 !**********************************************************************************************
 

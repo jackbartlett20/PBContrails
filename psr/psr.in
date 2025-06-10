@@ -1,6 +1,6 @@
 PSR INPUT DATA
 
-1.E1                            ! Integration time (s) -> int_time
+1.E-5                            ! Integration time (s) -> int_time
 1.E-6                           ! Time step (s) -> dt
 0                               ! Kernel update on/off -> agg_kernel_update
-2000                            ! Number of write ups (split evenly across integration time) -> total_writes
+1                            ! Number of write ups (split evenly across integration time) -> total_writes
