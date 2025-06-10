@@ -6,4 +6,6 @@ Mass density (kgm-3), Hygroscopicity
 1800., 0.5                          ! Component 2 (H2SO4)
 1500. 0.                            ! Component 3 (organics)
 
+Values in a line must be separated by commas. Spaces are ignored.
+
 Component 4 (H20) properties are calculated in the program.

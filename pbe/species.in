@@ -3,6 +3,7 @@ PARTICLE SPECIES INPUT DATA
 Total number density (m-3), Mean radius (m), SD, vf (comp 1), vf (comp 2), vf (comp 3), vf (comp 4)
 ---------------------------------------------------------------------------------------------------
 8e11, 20.E-9, 1.823E-1, 0.99, 0.01, 0., 0.
+8e10, 5.E-9, 1E-1, 0., 0.95, 0.05, 0.
 END
 
 Values in a line must be separated by commas. Spaces are ignored.

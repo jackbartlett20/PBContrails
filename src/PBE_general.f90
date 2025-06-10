@@ -239,9 +239,9 @@ read(30,*) grid_type
 read(30,*) m
 read(30,*) grid_lb
 read(30,*) grid_rb
+read(30,*) n_vf
 read(30,*) v0
 read(30,*) solver_pbe
-read(30,*) n_vf
 close(30)
 
 ! Read component parameters
@@ -296,12 +296,12 @@ integer i, i_vf1, i_vf2, i_vf3
 call pbe_set_environment(0.D0)
 
 ! Initialise soot
-do i=1,m
-  r_m = ((3.D0*v_m(i))/(4.D0*pi))**(1.D0/3.D0) ! convert volume to radius
-  ni_soot(i) = (1.D0/dv(i)) * n_soot * (1.D0/(sqrt(2.D0*pi)*sigma_soot)) * &
-  & exp(-(log(r_m/r_mean_soot))**2.D0/(2.D0*sigma_soot**2.D0))
-  ! scaling to per interval width * total number density * log-normal distribution
-end do
+!do i=1,m
+!  r_m = ((3.D0*v_m(i))/(4.D0*pi))**(1.D0/3.D0) ! convert volume to radius
+!  ni_soot(i) = (1.D0/dv(i)) * n_soot * (1.D0/(sqrt(2.D0*pi)*sigma_soot)) * &
+!  & exp(-(log(r_m/r_mean_soot))**2.D0/(2.D0*sigma_soot**2.D0))
+!  ! scaling to per interval width * total number density * log-normal distribution
+!end do
 
 
 ! Initialise particle composition
@@ -328,6 +328,7 @@ do
   end if
 
   ! Determine relevant volume fraction intervals
+  ! Add in something clever to optimise volume fractions for intervals
   do i=1,n_vf
     if ((vf1.ge.vf(i-1)).and.(vf1.le.vf(i))) then
       i_vf1 = i
@@ -341,9 +342,7 @@ do
   end do
   write(*,*) vf_m(i_vf1), vf_m(i_vf2), vf_m(i_vf3)
 
-  stop
-
-  ! 
+  ! Add species to number density array
   do i=1,m
     r_m = d_m(i)/2.D0
     ni(i,i_vf1,i_vf2,i_vf3) = ni(i,i_vf1,i_vf2,i_vf3) + (1.D0/(dv(i)*vf_width**3)) * &
@@ -419,6 +418,7 @@ implicit none
 
 double precision alpha,v1,v2
 
+integer array_size_bytes
 integer i
 
 !----------------------------------------------------------------------------------------------
@@ -426,7 +426,15 @@ integer i
 ! Allocate arrays
 allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),ni_droplet(m),ni_crystal(m),ni_soot(m))
 allocate(vf(0:n_vf), vf_m(n_vf))
-write(*,*) "Creating array of size ",(8*m*n_vf**3/(1000**2))," MB."
+
+array_size_bytes = 8*m*n_vf**3
+if (array_size_bytes > 1000**3) then
+  write(*,*) "Creating array of size ",(8*m*n_vf**3/(1000**3))," GB."
+else if (array_size_bytes > 1000**2) then
+  write(*,*) "Creating array of size ",(8*m*n_vf**3/(1000**2))," MB."
+else
+  write(*,*) "Creating array of size ",(8*m*n_vf**3/(1000))," kB."
+end if
 allocate(ni(m,n_vf,n_vf,n_vf))
 
 if (grid_type==1) then
