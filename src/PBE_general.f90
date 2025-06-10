@@ -73,8 +73,8 @@ double precision n_soot,r_mean_soot,sigma_soot
 integer n_vf
 double precision vf_width
 integer, parameter :: n_components = 4
-double precision, dimension(n_components-1) :: comp_densities
-double precision, dimension(n_components-1) :: comp_kappas
+double precision, dimension(n_components) :: comp_densities
+double precision, dimension(n_components) :: comp_kappas
 
 
 ! Double precision kind
@@ -255,6 +255,8 @@ do i=1,(n_components-1)
 end do
 close(30)
 
+comp_kappas(4) = 0.D0
+
 
 end subroutine pbe_read
 
@@ -295,16 +297,7 @@ integer i, i_vf1, i_vf2, i_vf3
 ! Initialise temperature, vapour pressure, and other environment variables
 call pbe_set_environment(0.D0)
 
-! Initialise soot
-!do i=1,m
-!  r_m = ((3.D0*v_m(i))/(4.D0*pi))**(1.D0/3.D0) ! convert volume to radius
-!  ni_soot(i) = (1.D0/dv(i)) * n_soot * (1.D0/(sqrt(2.D0*pi)*sigma_soot)) * &
-!  & exp(-(log(r_m/r_mean_soot))**2.D0/(2.D0*sigma_soot**2.D0))
-!  ! scaling to per interval width * total number density * log-normal distribution
-!end do
-
-
-! Initialise particle composition
+! Initialise particle composition distribution
 
 ni = 0.D0
 
@@ -355,6 +348,8 @@ close(30)
 
 stop
 
+! Initialise ice crystal distribution
+ni_crystal = 0.D0
 
 ! Initialise nucleation
 nuc = 0.D0
@@ -373,10 +368,6 @@ if (break_const>0.) then
   allocate(break_kernel_store(break_global_cntr,3))
   call pbe_breakage_calc(2)
 end if
-
-! Initialise distributions
-ni_droplet = 0.D0
-ni_crystal = 0.D0
 
 
 end subroutine pbe_init
@@ -648,6 +639,9 @@ Psat_i = 6.108D2*exp(21.87D0 * (temperature - 273.15D0)/(temperature - 7.66D0))
 
 supersaturation_l = Pvap/Psat_l - 1.D0
 supersaturation_i = Pvap/Psat_i - 1.D0
+
+! Update H2O density
+comp_densities(4) = 1.D3
 
 ! H2O number concentration at water saturation - not totally sure this is correct
 n_sat = avogadro_constant * Pvap / (ideal_gas_constant * temperature)

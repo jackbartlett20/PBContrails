@@ -14,7 +14,6 @@ use pbe_mod
 
 implicit none
 
-!double precision moment(0:1)
 double precision int_time,tin,current_time,meansize,dt
 
 integer i,i_step,n_steps,iflag,flowflag,nin,i_write,n_write,total_writes
