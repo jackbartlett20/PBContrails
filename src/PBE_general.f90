@@ -44,6 +44,9 @@ double precision, allocatable, dimension(:) :: ni_droplet
 double precision, allocatable, dimension(:) :: ni_crystal
 double precision, allocatable, dimension(:) :: ni_soot
 double precision, allocatable, dimension(:,:,:,:) :: ni
+double precision, allocatable, dimension(:,:,:,:) :: niprime
+double precision, allocatable, dimension(:) :: nislice_m
+double precision, allocatable, dimension(:) :: nislice_vf
 
 double precision v0,grid_lb,grid_rb
 double precision agg_kernel_const
@@ -419,16 +422,18 @@ integer i
 ! Allocate arrays
 allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),ni_droplet(m),ni_crystal(m),ni_soot(m))
 allocate(vf(0:n_vf), vf_m(n_vf))
+allocate(nislice_m(m), nislice_vf(n_vf))
 
 array_size_bytes = 8*m*n_vf**3
 if (array_size_bytes > 1000**3) then
-  write(*,*) "Creating array of size ",(8*m*n_vf**3/(1000**3))," GB."
+  write(*,*) "Creating 2 arrays of size ",(8*m*n_vf**3/(1000**3))," GB."
 else if (array_size_bytes > 1000**2) then
-  write(*,*) "Creating array of size ",(8*m*n_vf**3/(1000**2))," MB."
+  write(*,*) "Creating 2 arrays of size ",(8*m*n_vf**3/(1000**2))," MB."
 else
-  write(*,*) "Creating array of size ",(8*m*n_vf**3/(1000))," kB."
+  write(*,*) "Creating 2 arrays of size ",(8*m*n_vf**3/(1000))," kB."
 end if
 allocate(ni(m,n_vf,n_vf,n_vf))
+allocate(niprime(m,n_vf,n_vf,n_vf))
 
 if (grid_type==1) then
 
@@ -1047,6 +1052,8 @@ use pbe_mod
 deallocate(v,dv,v_m,d_m,nuc,ni_droplet,ni_crystal,ni_soot)
 deallocate(vf, vf_m)
 deallocate(ni)
+deallocate(niprime)
+deallocate(nislice_m, nislice_vf)
 
 end subroutine pbe_deallocate
 

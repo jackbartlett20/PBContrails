@@ -31,7 +31,6 @@ implicit none
 
 double precision, intent(in) :: dt
 
-double precision, allocatable, dimension(:,:,:,:) :: niprime
 double precision sum_VG ! sum of volume times growth source
 double precision r_m, J, sum_Jn, delta_supersaturation_l, delta_supersaturation_i ! now only used for crystals
 
@@ -41,10 +40,8 @@ integer index
 
 ! GENERAL PARTICLES
 
-allocate(niprime(m,n_vf,n_vf,n_vf))
-
 !Euler explicit
-call pbe_ydot_general(niprime,dt,sum_VG)
+call pbe_ydot_general(dt,sum_VG)
 ni = ni + niprime * dt
 
 ! Cap at zero after growth
@@ -58,8 +55,6 @@ Pvap = Pvap + ((sum_VG / water_molecular_vol) * boltzmann_constant * temperature
 if (Pvap<0.D0) then
   Pvap = 0.D0 ! just in case
 end if
-
-deallocate(niprime)
 
 !----------------------------------------------------------------------------------------------
 
@@ -103,7 +98,7 @@ end subroutine pbe_integ
 
 !**********************************************************************************************
 
-subroutine pbe_ydot_general(niprime,dt,sum_VG)
+subroutine pbe_ydot_general(dt,sum_VG)
 
 !**********************************************************************************************
 !
@@ -118,15 +113,15 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m,n_vf,n_vf,n_vf), intent(out) :: niprime
 double precision, intent(in) :: dt
 double precision, intent(out) :: sum_VG ! sum of volume times growth source
 
 double precision growth_source,growth_mass_source,params(1),growth_rate
 double precision new_V,vf1,vf2,vf3
+double precision interval_width
 
-integer, dimension(4) :: indices, new_indices
-integer i1,i2,i3,i4,index
+integer, dimension(4) :: i, i_left
+integer i1,i2,i3,i4,rb_index,lb_index,max_index
 
 !----------------------------------------------------------------------------------------------
 
@@ -143,43 +138,84 @@ do i1 = 1,m
   do i2 = 1,n_vf
     do i3 = 1,n_vf
       do i4 = 1,n_vf
-        indices = (/i1,i2,i3,i4/)
-        call calc_growth_rate_liquid(indices, growth_rate)
-        new_V = v_m(indices(1)) + (growth_rate * dt)
-        vf1 = vf_m(indices(2)) * (v_m(indices(1)) / new_V) ! nvPM
-        vf2 = vf_m(indices(3)) * (v_m(indices(1)) / new_V) ! H2SO4
-        vf3 = vf_m(indices(4)) * (v_m(indices(1)) / new_V) ! organics
+        i = (/i1,i2,i3,i4/)
+
+        growth_source_tot = 0.D0
+
+        ! Volume growth source
+        nislice_m = ni(:, i(2), i(3), i(4))
+        rb_index = i(1)
+        lb_index = i(1) - 1
+        max_index = m
+        i_left = (/lb_index, i(2), i(3), i(4)/)
+        interval_width = dv(i(1))
+        call growth_tvd_general(nislice_m, i, i_left, rb_index, lb_index, max_index, interval_width, dt, growth_source)
+        growth_source_tot = growth_source_tot + growth_source
+
+        ! Component 1 growth source
+        nislice_vf = ni(i(1), :, i(3), i(4))
+        rb_index = i(2)
+        lb_index = i(2) - 1
+        max_index = n_vf
+        i_left = (/i(1), lb_index, i(3), i(4)/)
+        interval_width = vf_width
+        call growth_tvd_general(nislice_vf, i, i_left, rb_index, lb_index, max_index, interval_width, dt, growth_source)
+        growth_source_tot = growth_source_tot + growth_source
+
+        ! Component 2 growth source
+        nislice_vf = ni(i(1), i(2), :, i(4))
+        rb_index = i(3)
+        lb_index = i(3) - 1
+        max_index = n_vf
+        i_left = (/i(1), i(2), lb_index, i(4)/)
+        interval_width = vf_width
+        call growth_tvd_general(nislice_vf, i, i_left, rb_index, lb_index, max_index, interval_width, dt, growth_source)
+        growth_source_tot = growth_source_tot + growth_source
+
+        ! Component 3 growth source
+        nislice_vf = ni(i(1), i(2), i(3), :)
+        rb_index = i(4)
+        lb_index = i(4) - 1
+        max_index = n_vf
+        i_left = (/i(1), i(2), i(4), lb_index/)
+        interval_width = vf_width
+        call growth_tvd_general(nislice_vf, i, i_left, rb_index, lb_index, max_index, interval_width, dt, growth_source)
+        growth_source_tot = growth_source_tot + growth_source
+        
+        niprime(i(1), i(2), i(3), i(4)) = niprime(i(1), i(2), i(3), i(4)) + growth_source_tot
+
+
+
+        !call calc_growth_rate_liquid(i, growth_rate)
+        !new_V = v_m(i(1)) + (growth_rate * dt)
+        !vf1 = vf_m(i(2)) * (v_m(i(1)) / new_V) ! nvPM
+        !vf2 = vf_m(i(3)) * (v_m(i(1)) / new_V) ! H2SO4
+        !vf3 = vf_m(i(4)) * (v_m(i(1)) / new_V) ! organics
 
         ! Determine new intervals
-        do index=1,m
-          if ((new_V.ge.v(index-1)).and.(new_V.le.v(index))) then
-            new_indices(1) = index
-          end if
-        end do
-        do index=1,n_vf
-          if ((vf1.ge.vf(index-1)).and.(vf1.le.vf(index))) then
-            new_indices(2) = index
-          end if
-          if ((vf2.ge.vf(index-1)).and.(vf2.le.vf(index))) then
-            new_indices(3) = index
-          end if
-          if ((vf3.ge.vf(index-1)).and.(vf3.le.vf(index))) then
-            new_indices(4) = index
-          end if
-        end do
-
-        !call growth_tvd_general(indices, dt, growth_source)
-        !niprime(indices(1), indices(2), indices(3), indices(4)) = &
-        !& niprime(indices(1), indices(2), indices(3), indices(4)) + growth_source
-        
-        sum_VG = sum_VG + growth_rate * ni(indices(1), indices(2), indices(3), indices(4))
+        !do index=1,m
+        !  if ((new_V.ge.v(index-1)).and.(new_V.le.v(index))) then
+        !    new_i(1) = index
+        !  end if
+        !end do
+        !do index=1,n_vf
+        !  if ((vf1.ge.vf(index-1)).and.(vf1.le.vf(index))) then
+        !    new_i(2) = index
+        !  end if
+        !  if ((vf2.ge.vf(index-1)).and.(vf2.le.vf(index))) then
+        !    new_i(3) = index
+        !  end if
+        !  if ((vf3.ge.vf(index-1)).and.(vf3.le.vf(index))) then
+        !    new_i(4) = index
+        !  end if
+        !end do
 
         ! Take everything in current indices and move to new indices
-        if ((new_indices(1) /= indices(1)).or.(new_indices(2) /= indices(2)).or.(new_indices(3) /= indices(3)).or.(new_indices(4) /= indices(4))) then
-          ni(new_indices(1), new_indices(2), new_indices(3), new_indices(4)) = &
-          & ni(new_indices(1), new_indices(2), new_indices(3), new_indices(4)) + &
-          & ni(indices(1), indices(2), indices(3), indices(4))
-          ni(indices(1), indices(2), indices(3), indices(4)) = 0.D0
+        !if ((new_i(1) /= i(1)).or.(new_i(2) /= i(2)).or.(new_i(3) /= i(3)).or.(new_i(4) /= i(4))) then
+        !  sum_VG = sum_VG + growth_rate * ni(i(1), i(2), i(3), i(4))
+        !  ni(new_i(1), new_i(2), new_i(3), new_i(4)) = &
+        !  & ni(new_i(1), new_i(2), new_i(3), new_i(4)) + ni(i(1), i(2), i(3), i(4))
+        !  ni(i(1), i(2), i(3), i(4)) = 0.D0
         end if
       end do
     end do
