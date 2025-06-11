@@ -14,8 +14,8 @@ PBE INPUT DATA
 0.                              ! Fragmentation rate constant -> break_const
 3                               ! Order of Gaussian quadrature (for fragmentation) -> order_of_gq
 1                               ! Grid type -> grid_type
-1000                             ! Number of volume grid points -> m
-4.E-27                          ! Minimum size in grid (m3) (must be >0 for geometric grid) -> grid_lb
+100                             ! Number of volume grid points -> m
+4.E-24                          ! Minimum size in grid (m3) (must be >0 for geometric grid) -> grid_lb
 4.E-21                          ! Maximum size in grid (m3) -> grid_rb
 20                             ! Number of volume fraction intervals -> n_vf
 1.                              ! Volume of nuclei -> v0 (obsolete)

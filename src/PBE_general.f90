@@ -348,10 +348,6 @@ do
 end do
 close(30)
 
-if (sum(ni) /= 0.D0) then
-  write(*,*) "not all zero"
-end if
-
 
 ! Initialise ice crystal distribution
 ni_crystal = 0.D0
@@ -426,23 +422,24 @@ allocate(nislice_m(m), nislice_vf(n_vf))
 
 array_size_bytes = 8*m*n_vf**3
 if (array_size_bytes > 1000**3) then
-  write(*,*) "Creating 2 arrays of size ",(8*m*n_vf**3/(1000**3))," GB."
+  write(*,*) "Creating 2 arrays of size ",(array_size_bytes/(1000**3))," GB."
 else if (array_size_bytes > 1000**2) then
-  write(*,*) "Creating 2 arrays of size ",(8*m*n_vf**3/(1000**2))," MB."
+  write(*,*) "Creating 2 arrays of size ",(array_size_bytes/(1000**2))," MB."
 else
-  write(*,*) "Creating 2 arrays of size ",(8*m*n_vf**3/(1000))," kB."
+  write(*,*) "Creating 2 arrays of size ",(array_size_bytes/(1000))," kB."
 end if
 allocate(ni(m,n_vf,n_vf,n_vf))
 allocate(niprime(m,n_vf,n_vf,n_vf))
 
+! Calculate grid
 if (grid_type==1) then
 
   !Option 1: geometric grid
   if (grid_lb==0) then
-    write(*,*) "Left grid boundary must be greater than zero for geometric grid"
+    write(*,*) "Left grid boundary must be greater than zero for geometric grid."
     stop
   end if
-  alpha = exp(1.D0/m * log(grid_rb/grid_lb)) ! Calculates geometric ratio
+  alpha = exp(log(grid_rb/grid_lb)/m) ! Calculates geometric ratio
   v(0) = grid_lb
   do i=1,m
     v(i) = v(i-1) * alpha
@@ -908,6 +905,8 @@ call pbe_moments(nitemp,moment,meansize)
 do i=1,m
   if (abs(nitemp(i))<1.D-16) then
     nitemp(i) = 0.D0
+  else if (abs(nitemp(i))>0.99D99) then
+    nitemp(i) = 0.99D99
   end if
 end do
 

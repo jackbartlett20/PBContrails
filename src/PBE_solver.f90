@@ -41,13 +41,15 @@ integer index
 ! GENERAL PARTICLES
 
 !Euler explicit
-call pbe_ydot_general(dt,sum_VG)
-ni = ni + niprime * dt
+call pbe_ydot_general(dt)
+ni = ni + niprime * dt ! niprime is now stored in pbe_mod
 
 ! Cap at zero after growth
 where (ni < 0.D0)
   ni = 0.D0
 end where
+
+sum_VG = 0.
 
 ! Adjust water vapour due to droplet growth
 Pvap = Pvap + ((sum_VG / water_molecular_vol) * boltzmann_constant * temperature) * dt
@@ -61,8 +63,8 @@ end if
 ! CRYSTALS
 
 !Euler explicit
-!call pbe_ydot_crystal(niprime,dt)
-!ni_crystal = ni_crystal + niprime * dt
+!call pbe_ydot_crystal(niprime_crystal,dt)
+!ni_crystal = ni_crystal + niprime_crystal * dt
 
 ! Cap at zero after growth
 !do index = 1,m
@@ -98,7 +100,7 @@ end subroutine pbe_integ
 
 !**********************************************************************************************
 
-subroutine pbe_ydot_general(dt,sum_VG)
+subroutine pbe_ydot_general(dt)
 
 !**********************************************************************************************
 !
@@ -113,10 +115,24 @@ use pbe_mod
 
 implicit none
 
-double precision, intent(in) :: dt
-double precision, intent(out) :: sum_VG ! sum of volume times growth source
+! Interface to get nislice array of assumed dimension to work
+interface
+  subroutine growth_tvd_general(nislice, i, i_left, rb_index, lb_index, max_index, interval_width, dt, growth_source)
+    double precision, dimension(:), intent(in) :: nislice
+    integer, dimension(4), intent(in)          :: i
+    integer, dimension(4), intent(in)          :: i_left
+    integer, intent(in)                        :: rb_index
+    integer, intent(in)                        :: lb_index
+    integer, intent(in)                        :: max_index
+    double precision, intent(in)               :: interval_width
+    double precision, intent(in)               :: dt
+    double precision, intent(out)              :: growth_source
+  end subroutine growth_tvd_general
+end interface
 
-double precision growth_source,growth_mass_source,params(1),growth_rate
+double precision, intent(in) :: dt
+
+double precision growth_source,growth_mass_source,params(1),growth_rate,growth_source_tot
 double precision new_V,vf1,vf2,vf3
 double precision interval_width
 
@@ -216,7 +232,7 @@ do i1 = 1,m
         !  ni(new_i(1), new_i(2), new_i(3), new_i(4)) = &
         !  & ni(new_i(1), new_i(2), new_i(3), new_i(4)) + ni(i(1), i(2), i(3), i(4))
         !  ni(i(1), i(2), i(3), i(4)) = 0.D0
-        end if
+        !end if
       end do
     end do
   end do
@@ -244,7 +260,7 @@ end subroutine pbe_ydot_general
 
 !**********************************************************************************************
 
-subroutine pbe_ydot_crystal(niprime,dt)
+subroutine pbe_ydot_crystal(niprime_crystal,dt)
 
 !**********************************************************************************************
 !
@@ -259,7 +275,7 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m), intent(out) :: niprime
+double precision, dimension(m), intent(out) :: niprime_crystal
 
 double precision, intent(in) :: dt
 
@@ -269,7 +285,7 @@ integer index
 
 !----------------------------------------------------------------------------------------------
 
-niprime = 0. ! d(ni)/dt
+niprime_crystal = 0. ! d(ni)/dt
 params(1) = 0.
 
 
@@ -283,10 +299,10 @@ if (supersaturation_i>0) then
   do index = 1,m
     ! growth_tvd has been modified to only work with crystals to allow compile
     call growth_tvd(ni_crystal, index, supersaturation_i, dt, growth_source)
-    niprime(index) = niprime(index) + growth_source
+    niprime_crystal(index) = niprime_crystal(index) + growth_source
   end do
 
-  ! Else niprime(index) does not change
+  ! Else niprime_crystal(index) does not change
 end if
 
 
@@ -295,12 +311,12 @@ if (agg_kernel>0) then
   ! CFV formulation of Liu and Rigopoulos (2019)
   ! Note 1: current value of niprime is augmented within pbe_agg_cfv
   ! Note 2: contracting grid is not implemented
-  call pbe_agg_cfv(dv,v_m,ni_crystal,niprime)
+  call pbe_agg_cfv(dv,v_m,ni_crystal,niprime_crystal)
 end if
 
 !Fragmentation
 if (break_const>0.) then
-  call pbe_breakage_cfv(niprime,ni_crystal)
+  call pbe_breakage_cfv(niprime_crystal,ni_crystal)
 end if
 
 end subroutine pbe_ydot_crystal

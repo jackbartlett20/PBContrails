@@ -25,8 +25,8 @@ use pbe_mod
 implicit none
 
 double precision, dimension(:), intent(in) :: nislice ! assumed shape (either m or n_vf)
-integer, dimension(4), intent(in)          :: i
-integer, dimension(4), intent(in)          :: i_left
+integer, dimension(4), intent(in)          :: i ! main set of indices
+integer, dimension(4), intent(in)          :: i_left ! indices at left side of boundary
 integer, intent(in)                        :: rb_index
 integer, intent(in)                        :: lb_index
 integer, intent(in)                        :: max_index ! either m or n_vf
@@ -56,9 +56,9 @@ call calc_growth_rate_liquid(i_left, g_terml)
 
 ! Courant-Friedrichs-Lewy (CFL) condition (C <= 1 for PBE)
 courant = g_termr * dt / interval_width
-if (courant>1) then
+if (abs(courant)>1) then
   write(*,*) "Courant number of ",courant," detected."
-  write(*,*) "Courant number should be <= 1 for growth function to work."
+  write(*,*) "Courant number should have magnitude <= 1 for growth function to work."
   write(*,*) "Adjust dt proportionately."
   stop
 end if
@@ -338,9 +338,9 @@ surf_tens = 72.8D-3 ! Update!
 
 r = ((3.D0*v(i(1)))/(4.D0*pi))**(1.D0/3.D0) ! Find radius of indexed boundary
 
-dry_frac = min(vf(i(1)) + vf(i(2)) + vf(i(3)), 1.D0)
+dry_frac = min(vf(i(2)) + vf(i(3)) + vf(i(4)), 1.D0)
 
-kappa = (vf(i(1))*comp_kappas(1) + vf(i(2))*comp_kappas(2) + vf(i(3))*comp_kappas(3)) / dry_frac
+kappa = (vf(i(2))*comp_kappas(1) + vf(i(3))*comp_kappas(2) + vf(i(4))*comp_kappas(3)) / dry_frac
 
 if (dry_frac.eq.1.D0) then
   raoult_term = 1.D0
@@ -352,7 +352,7 @@ kelvin_term = exp((2.D0 * surf_tens * water_molar_mass)/(ideal_gas_constant*temp
 
 S_droplet = raoult_term * kelvin_term
 
-particle_density = vf(i(1))*comp_densities(1) + vf(i(2))*comp_densities(2) + vf(i(3))*comp_densities(3) + vf(i(4))*comp_densities(4)
+particle_density = vf(i(2))*comp_densities(1) + vf(i(3))*comp_densities(2) + vf(i(4))*comp_densities(3) + (1-vf(i(2))-vf(i(3))-vf(i(4)))*comp_densities(4)
 
 g_term = 4*pi*r * (diff_coeff * water_molar_mass)/(particle_density * ideal_gas_constant * temperature) * (Pvap - S_droplet*Psat_l)
 
