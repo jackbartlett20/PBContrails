@@ -54,6 +54,7 @@ call calc_growth_rate_liquid(i, g_termr)
 ! Growth rate at left boundary calculation
 call calc_growth_rate_liquid(i_left, g_terml)
 
+
 ! Courant-Friedrichs-Lewy (CFL) condition (C <= 1 for PBE)
 courant = g_termr * dt / interval_width
 if (abs(courant)>1) then
@@ -331,6 +332,7 @@ integer, dimension(4), intent(in) :: i
 double precision, intent(out) :: g_term
 
 double precision surf_tens,r,dry_frac,kappa,raoult_term,kelvin_term,S_droplet,particle_density
+double precision accom_coeff,diff_coeff_mod
 
 !----------------------------------------------------------------------------------------------
 
@@ -352,9 +354,18 @@ kelvin_term = exp((2.D0 * surf_tens * water_molar_mass)/(ideal_gas_constant*temp
 
 S_droplet = raoult_term * kelvin_term
 
-particle_density = vf(i(2))*comp_densities(1) + vf(i(3))*comp_densities(2) + vf(i(4))*comp_densities(3) + (1-vf(i(2))-vf(i(3))-vf(i(4)))*comp_densities(4)
+write(*,*) "S_droplet: ",S_droplet
 
-g_term = 4*pi*r * (diff_coeff * water_molar_mass)/(particle_density * ideal_gas_constant * temperature) * (Pvap - S_droplet*Psat_l)
+particle_density = vf(i(2))*comp_densities(1) + vf(i(3))*comp_densities(2) + vf(i(4))*comp_densities(3) + (1-dry_frac)*comp_densities(4)
+
+accom_coeff = 1.D0
+diff_coeff_mod = diff_coeff / ( r/(r + 0.7*mfp_air) + &
+                              & diff_coeff/(r*accom_coeff) * &
+                              & sqrt(2*pi*water_molar_mass/(ideal_gas_constant*temperature)) )
+
+g_term = 4.D0*pi*r * (diff_coeff_mod * water_molar_mass)/(particle_density * ideal_gas_constant * temperature) * (Pvap - S_droplet*Psat_l)
+
+write(*,*) "g_term: ",g_term
 
 end subroutine calc_growth_rate_liquid
 

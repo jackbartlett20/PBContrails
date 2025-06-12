@@ -47,10 +47,6 @@ current_time= 0.D0
 i_write = 1
 first_write = .true.
 
-! Temporary:
-call pbe_output_general_psd(current_time, first_write)
-first_write = .false.
-
 !----------------------------------------------------------------------------------------------
 
 ! Integration

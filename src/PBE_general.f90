@@ -58,6 +58,13 @@ integer agg_kernel
 integer growth_function
 integer order_of_gq
 
+! Particle composition parameters
+integer n_vf
+double precision vf_width
+integer, parameter :: n_components = 4
+double precision, dimension(n_components) :: comp_densities
+double precision, dimension(n_components) :: comp_kappas
+
 ! Environment variables
 double precision temperature,T_exhaust,T_ambient
 double precision P_ambient
@@ -68,16 +75,10 @@ double precision mixing_grad
 double precision n_sat
 double precision vapour_thermal_speed
 double precision diff_coeff
+double precision mfp_air
 
 ! Soot initial distribution
 double precision n_soot,r_mean_soot,sigma_soot
-
-! Particle composition parameters
-integer n_vf
-double precision vf_width
-integer, parameter :: n_components = 4
-double precision, dimension(n_components) :: comp_densities
-double precision, dimension(n_components) :: comp_kappas
 
 
 ! Double precision kind
@@ -644,6 +645,9 @@ Psat_i = 6.108D2*exp(21.87D0 * (temperature - 273.15D0)/(temperature - 7.66D0))
 supersaturation_l = Pvap/Psat_l - 1.D0
 supersaturation_i = Pvap/Psat_i - 1.D0
 
+! Update mean free path of air - assumes effective collision diameter 0.37 nm
+mfp_air = (boltzmann_constant*temperature)/(sqrt(2*pi)*(0.37D-9)**2*P_ambient)
+
 ! Update H2O density
 comp_densities(4) = 1.D3
 
@@ -652,7 +656,7 @@ n_sat = avogadro_constant * Pvap / (ideal_gas_constant * temperature)
 
 vapour_thermal_speed = sqrt(3 * boltzmann_constant * temperature / water_molecular_mass)
 
-diff_coeff = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325D0 / P_ambient)
+diff_coeff = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325.D0 / P_ambient)
 
 
 end subroutine pbe_set_environment

@@ -137,7 +137,7 @@ double precision new_V,vf1,vf2,vf3
 double precision interval_width
 
 integer, dimension(4) :: i, i_left
-integer i1,i2,i3,i4,rb_index,lb_index,max_index
+integer i1,i2,i3,i4,i3_max,i4_max,rb_index,lb_index,max_index
 
 !----------------------------------------------------------------------------------------------
 
@@ -150,10 +150,13 @@ params(1) = 0.
 
 
 ! Droplet growth
+
 do i1 = 1,m
   do i2 = 1,n_vf
-    do i3 = 1,n_vf
-      do i4 = 1,n_vf
+    i3_max = n_vf + 1 - i2
+    do i3 = 1,i3_max
+      i4_max = n_vf + 1 - i2 - i3
+      do i4 = 1,i4_max
         i = (/i1,i2,i3,i4/)
 
         growth_source_tot = 0.D0
@@ -193,7 +196,7 @@ do i1 = 1,m
         rb_index = i(4)
         lb_index = i(4) - 1
         max_index = n_vf
-        i_left = (/i(1), i(2), i(4), lb_index/)
+        i_left = (/i(1), i(2), i(3), lb_index/)
         interval_width = vf_width
         call growth_tvd_general(nislice_vf, i, i_left, rb_index, lb_index, max_index, interval_width, dt, growth_source)
         growth_source_tot = growth_source_tot + growth_source
