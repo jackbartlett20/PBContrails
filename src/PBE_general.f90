@@ -639,8 +639,9 @@ else
 
 end if
 
-Psat_l = 6.108D2*exp(17.27D0 * (temperature - 273.15D0)/(temperature - 35.86D0))
-Psat_i = 6.108D2*exp(21.87D0 * (temperature - 273.15D0)/(temperature - 7.66D0))
+! Buck equations
+Psat_l = 6.1121D2*exp((18.678 - (temperature-273.15)/234.5) * ((temperature-273.15)/(temperature-16.01)))
+Psat_i = 6.1115D2*exp((23.036 - (temperature-273.15)/333.7) * ((temperature-273.15)/(temperature+6.67)))
 
 supersaturation_l = Pvap/Psat_l - 1.D0
 supersaturation_i = Pvap/Psat_i - 1.D0
