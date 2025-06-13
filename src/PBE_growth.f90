@@ -344,7 +344,7 @@ dry_frac = min(vf(i(2)) + vf(i(3)) + vf(i(4)), 1.D0)
 
 kappa = (vf(i(2))*comp_kappas(1) + vf(i(3))*comp_kappas(2) + vf(i(4))*comp_kappas(3)) / dry_frac
 
-if (dry_frac.eq.1.D0) then
+if (kappa.eq.0.D0) then
   raoult_term = 1.D0
 else
   raoult_term = (1.D0 - dry_frac)/(1.D0 - (1.D0 - kappa)*dry_frac)
