@@ -7,9 +7,6 @@ PBE INPUT DATA
 2.E4                            ! Air pressure (Pa) -> P_ambient
 400.                            ! Vapour pressure in exhaust (Pa) -> Pvap_exhaust
 7.0                             ! Ambient vapour pressure (Pa) -> Pvap_ambient
-8.E10                           ! Soot particle concentration in exhaust (m-3) -> n_soot
-20.E-9                          ! Mean soot particle radius (m) -> r_mean_soot
-1.823E-1                        ! Standard deviation of soot particle radius in log-space (1.2 nm -> 0.182) -> sigma_soot
 0                               ! Mass-conservative growth discretisation -> i_gm
 0.                              ! Fragmentation rate constant -> break_const
 3                               ! Order of Gaussian quadrature (for fragmentation) -> order_of_gq
@@ -17,8 +14,9 @@ PBE INPUT DATA
 100                             ! Number of volume grid points -> m
 4.E-24                          ! Minimum size in grid (m3) (must be >0 for geometric grid) -> grid_lb
 4.E-21                          ! Maximum size in grid (m3) -> grid_rb
-20                             ! Number of volume fraction intervals -> n_vf
 1.                              ! Volume of nuclei -> v0 (obsolete)
+1                               ! Integration method -> solver_pbe
+
 
 Aggregation kernels:
 0. No aggregation

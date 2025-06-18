@@ -20,6 +20,8 @@ integer i,i_step,n_steps,iflag,flowflag,nin,i_write,n_write,total_writes
 logical first_write
 integer agg_kernel_update
 
+character(len=30) filename
+
 !**********************************************************************************************
 
 ! Initialisation
@@ -70,9 +72,6 @@ do i_step = 1,n_steps
   ! Currently assumes whole volume is water
   call pbe_freezing(dt)
 
-  ! Update soot activation
-  !call pbe_activation()
-
   ! Integrate - for processes which change over time (not just those which alter ni)
   ! Pvap is reduced by growth here
   call pbe_integ(dt)
@@ -81,11 +80,13 @@ do i_step = 1,n_steps
   ! Write PSD
   if ((i_write==n_write).or.(i_step==n_steps)) then
 
-    ! General particles
-    call pbe_output_general_psd(current_time, first_write)
+    ! Droplets
+    filename = 'output/psd_droplet.out'
+    call pbe_output_psd(ni_droplet, filename, current_time, first_write)
 
     ! Crystals
-    call pbe_output_crystal_psd(current_time, first_write)
+    filename = 'output/psd_crystal.out'
+    call pbe_output_psd(ni_crystal, filename, current_time, first_write)
 
     ! Environment variables
     call pbe_output_env(current_time, first_write)

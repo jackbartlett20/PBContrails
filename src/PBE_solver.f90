@@ -31,65 +31,69 @@ implicit none
 
 double precision, intent(in) :: dt
 
-double precision sum_VG ! sum of volume times growth source
-double precision r_m, J, sum_Jn, delta_supersaturation_l, delta_supersaturation_i ! now only used for crystals
-
+double precision g_term, sum_gn
 integer index
 
 !----------------------------------------------------------------------------------------------
 
-! GENERAL PARTICLES
+if (solver_pbe == 1) then
 
-!Euler explicit
-call pbe_ydot_general(dt)
-ni = ni + niprime * dt ! niprime is now stored in pbe_mod
+  !Euler explicit
+  call pbe_integ_euler(dt)
 
-! Cap at zero after growth
-where (ni < 0.D0)
-  ni = 0.D0
-end where
+else if (solver_pbe == 2) then
 
-sum_VG = 0.
+  !Runge-Kutta 2nd order
+  call pbe_integ_RK2(dt)
 
-! Adjust water vapour due to droplet growth
-Pvap = Pvap + ((sum_VG / water_molecular_vol) * boltzmann_constant * temperature) * dt
+else if (solver_pbe == 3) then
 
-if (Pvap<0.D0) then
-  Pvap = 0.D0 ! just in case
+  !Runge-Kutta 4th order
+  call pbe_integ_RK4(dt)
+
 end if
 
-!----------------------------------------------------------------------------------------------
+do index=1,m
+  if (kappa(index)<0.D0) then
+    write(*,*) "Found kappa = ",kappa(index)," at index ",index
+    stop
+  else if (kappa(index)>1.D0) then
+    write(*,*) "Found kappa = ",kappa(index)," at index ",index
+    stop
+  else if (rho(index)<0.D0) then
+    write(*,*) "Found rho = ",rho(index)," at index ",index
+    stop
+  else if (f_dry(index)<0.D0) then
+    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index
+    stop
+  else if (f_dry(index)>1.D0) then
+    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index
+    f_dry(index) = 1.D0
+  end if
+end do
 
-! CRYSTALS
 
-!Euler explicit
-!call pbe_ydot_crystal(niprime_crystal,dt)
-!ni_crystal = ni_crystal + niprime_crystal * dt
+! Change Pvap due to growth
+sum_gn = 0.D0
+do index=1,m
+  call calc_growth_rate_liquid(index, .false., g_term)
+  sum_gn = sum_gn + g_term*ni_droplet(index)*dv(index)
+end do
+Pvap = Pvap + (boltzmann_constant * temperature * (sum_gn / water_molecular_vol)) * dt
+
 
 ! Cap at zero after growth
-!do index = 1,m
-!  if (ni_crystal(index) < 0.D0) then
-!    ni_crystal(index) = 0.D0
-!  end if
-!end do
+!where (ni_droplet < 0.D0)
+!  ni_droplet = 0.D0
+!end where
 
+!sum_VG = 0.
 
-! Deplete supersaturation due to crystal growth
-!sum_Jn = 0.D0
-!if (supersaturation_i>0.D0) then
-!  
-!  do index=1,m
-!    ! Calculate H2O flux to particles of size r_m
-!    r_m = ((3.D0*v_m(index))/(4.D0*pi))**(1.D0/3.D0)
-!    call calc_J(r_m, supersaturation_i, J)
-!    sum_Jn = sum_Jn + J * ni_crystal(index) * dv(index) ! Last part to change to absolute number density
-!  end do
+! Adjust water vapour due to droplet growth
+!Pvap = Pvap + ((sum_VG / water_molecular_vol) * boltzmann_constant * temperature) * dt
 !
-!  delta_supersaturation_i = (- sum_Jn / n_sat) * dt ! in brackets is ds/dt
-!  Pvap = Pvap + delta_supersaturation_i * Psat_i
-!  if (Pvap<0.D0) then
-!    Pvap = 0.D0 ! just in case
-!  end if
+!if (Pvap<0.D0) then
+!  Pvap = 0.D0 ! just in case
 !end if
 
 end subroutine pbe_integ
@@ -100,14 +104,13 @@ end subroutine pbe_integ
 
 !**********************************************************************************************
 
-subroutine pbe_ydot_general(dt)
+subroutine pbe_integ_euler(dt)
 
 !**********************************************************************************************
 !
-! Calculates the right hand side of the ODEs to be integrated
+! Euler explicit temporal integration
 !
-! By Stelios Rigopoulos
-! Modified by Jack Bartlett (10/06/2025)
+! Jack Bartlett (18/06/2025)
 !
 !**********************************************************************************************
 
@@ -115,147 +118,26 @@ use pbe_mod
 
 implicit none
 
-! Interface to get nislice array of assumed dimension to work
-interface
-  subroutine growth_tvd_general(nislice, i, i_left, rb_index, lb_index, max_index, interval_width, dt, growth_source)
-    double precision, dimension(:), intent(in) :: nislice
-    integer, dimension(4), intent(in)          :: i
-    integer, dimension(4), intent(in)          :: i_left
-    integer, intent(in)                        :: rb_index
-    integer, intent(in)                        :: lb_index
-    integer, intent(in)                        :: max_index
-    double precision, intent(in)               :: interval_width
-    double precision, intent(in)               :: dt
-    double precision, intent(out)              :: growth_source
-  end subroutine growth_tvd_general
-end interface
-
 double precision, intent(in) :: dt
 
-double precision growth_source,growth_mass_source,params(1),growth_rate,growth_source_tot
-double precision new_V,vf1,vf2,vf3
-double precision interval_width
-
-integer, dimension(4) :: i, i_left
-integer i1,i2,i3,i4,i3_max,i4_max,rb_index,lb_index,max_index
+double precision ni_droplet_prime(m),kappa_prime(m),rho_prime(m),f_dry_prime(m)
 
 !----------------------------------------------------------------------------------------------
 
-niprime = 0. ! d(ni)/dt
-params(1) = 0.
+call pbe_ydot_droplet(ni_droplet,ni_droplet_prime,dt)
+ni_droplet = ni_droplet + ni_droplet_prime * dt
+
+call pbe_ydot_kappa(kappa,ni_droplet_prime,kappa_prime,dt)
+kappa = kappa + kappa_prime * dt
+
+call pbe_ydot_rho(rho,ni_droplet_prime,rho_prime,dt)
+rho = rho + rho_prime * dt
+
+call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime,dt)
+f_dry = f_dry + f_dry_prime * dt
 
 
-! Nucleation
-! Add homogeneous nucleation at high supersaturation? Otherwise none
-
-
-! Droplet growth
-
-do i1 = 1,m
-  do i2 = 1,n_vf
-    i3_max = n_vf + 1 - i2
-    do i3 = 1,i3_max
-      i4_max = n_vf + 1 - i2 - i3
-      do i4 = 1,i4_max
-        i = (/i1,i2,i3,i4/)
-
-        growth_source_tot = 0.D0
-
-        ! Volume growth source
-        nislice_m = ni(:, i(2), i(3), i(4))
-        rb_index = i(1)
-        lb_index = i(1) - 1
-        max_index = m
-        i_left = (/lb_index, i(2), i(3), i(4)/)
-        interval_width = dv(i(1))
-        call growth_tvd_general(nislice_m, i, i_left, rb_index, lb_index, max_index, interval_width, dt, growth_source)
-        growth_source_tot = growth_source_tot + growth_source
-
-        ! Component 1 growth source
-        nislice_vf = ni(i(1), :, i(3), i(4))
-        rb_index = i(2)
-        lb_index = i(2) - 1
-        max_index = n_vf
-        i_left = (/i(1), lb_index, i(3), i(4)/)
-        interval_width = vf_width
-        call growth_tvd_general(nislice_vf, i, i_left, rb_index, lb_index, max_index, interval_width, dt, growth_source)
-        growth_source_tot = growth_source_tot + growth_source
-
-        ! Component 2 growth source
-        nislice_vf = ni(i(1), i(2), :, i(4))
-        rb_index = i(3)
-        lb_index = i(3) - 1
-        max_index = n_vf
-        i_left = (/i(1), i(2), lb_index, i(4)/)
-        interval_width = vf_width
-        call growth_tvd_general(nislice_vf, i, i_left, rb_index, lb_index, max_index, interval_width, dt, growth_source)
-        growth_source_tot = growth_source_tot + growth_source
-
-        ! Component 3 growth source
-        nislice_vf = ni(i(1), i(2), i(3), :)
-        rb_index = i(4)
-        lb_index = i(4) - 1
-        max_index = n_vf
-        i_left = (/i(1), i(2), i(3), lb_index/)
-        interval_width = vf_width
-        call growth_tvd_general(nislice_vf, i, i_left, rb_index, lb_index, max_index, interval_width, dt, growth_source)
-        growth_source_tot = growth_source_tot + growth_source
-        
-        niprime(i(1), i(2), i(3), i(4)) = niprime(i(1), i(2), i(3), i(4)) + growth_source_tot
-
-
-
-        !call calc_growth_rate_liquid(i, growth_rate)
-        !new_V = v_m(i(1)) + (growth_rate * dt)
-        !vf1 = vf_m(i(2)) * (v_m(i(1)) / new_V) ! nvPM
-        !vf2 = vf_m(i(3)) * (v_m(i(1)) / new_V) ! H2SO4
-        !vf3 = vf_m(i(4)) * (v_m(i(1)) / new_V) ! organics
-
-        ! Determine new intervals
-        !do index=1,m
-        !  if ((new_V.ge.v(index-1)).and.(new_V.le.v(index))) then
-        !    new_i(1) = index
-        !  end if
-        !end do
-        !do index=1,n_vf
-        !  if ((vf1.ge.vf(index-1)).and.(vf1.le.vf(index))) then
-        !    new_i(2) = index
-        !  end if
-        !  if ((vf2.ge.vf(index-1)).and.(vf2.le.vf(index))) then
-        !    new_i(3) = index
-        !  end if
-        !  if ((vf3.ge.vf(index-1)).and.(vf3.le.vf(index))) then
-        !    new_i(4) = index
-        !  end if
-        !end do
-
-        ! Take everything in current indices and move to new indices
-        !if ((new_i(1) /= i(1)).or.(new_i(2) /= i(2)).or.(new_i(3) /= i(3)).or.(new_i(4) /= i(4))) then
-        !  sum_VG = sum_VG + growth_rate * ni(i(1), i(2), i(3), i(4))
-        !  ni(new_i(1), new_i(2), new_i(3), new_i(4)) = &
-        !  & ni(new_i(1), new_i(2), new_i(3), new_i(4)) + ni(i(1), i(2), i(3), i(4))
-        !  ni(i(1), i(2), i(3), i(4)) = 0.D0
-        !end if
-      end do
-    end do
-  end do
-end do
-
-
-!Aggregation
-if (agg_kernel>0) then
-  ! CFV formulation of Liu and Rigopoulos (2019)
-  ! Note 1: current value of niprime is augmented within pbe_agg_cfv
-  ! Note 2: contracting grid is not implemented
-  call pbe_agg_cfv(dv,v_m,ni,niprime)
-end if
-
-!Fragmentation
-if (break_const>0.) then
-  call pbe_breakage_cfv(niprime,ni)
-end if
-
-end subroutine pbe_ydot_general
+end subroutine pbe_integ_euler
 
 !**********************************************************************************************
 
@@ -263,11 +145,104 @@ end subroutine pbe_ydot_general
 
 !**********************************************************************************************
 
-subroutine pbe_ydot_crystal(niprime_crystal,dt)
+subroutine pbe_integ_RK2(dt)
 
 !**********************************************************************************************
 !
-! Calculates the right hand side of the ODEs to be integrated
+! !Runge-Kutta 2nd order temporal integration
+!
+! Jack Bartlett (18/06/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in) :: dt
+
+double precision ni_droplet_prime(m),kappa_prime(m),rho_prime(m),f_dry_prime(m)
+double precision temp(m)
+
+!----------------------------------------------------------------------------------------------
+
+call pbe_ydot_droplet(ni_droplet,ni_droplet_prime,dt)
+temp = ni_droplet + 0.5D0 * ni_droplet_prime * dt
+call pbe_ydot_droplet(temp,ni_droplet_prime,dt)
+ni_droplet = ni_droplet + ni_droplet_prime * dt
+
+call pbe_ydot_kappa(kappa,ni_droplet_prime,kappa_prime,dt)
+temp = kappa + 0.5D0 * kappa_prime * dt
+call pbe_ydot_kappa(temp,ni_droplet_prime,kappa_prime,dt)
+kappa = kappa + kappa_prime * dt
+
+call pbe_ydot_rho(rho,ni_droplet_prime,rho_prime,dt)
+temp = rho + 0.5D0 * rho_prime * dt
+call pbe_ydot_rho(temp,ni_droplet_prime,rho_prime,dt)
+rho = rho + rho_prime * dt
+
+call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime,dt)
+temp = f_dry + 0.5D0 * f_dry_prime * dt
+call pbe_ydot_f_dry(temp,ni_droplet_prime,f_dry_prime,dt)
+f_dry = f_dry + f_dry_prime * dt
+
+
+end subroutine pbe_integ_RK2
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_integ_RK4(dt)
+
+!**********************************************************************************************
+!
+! !Runge-Kutta 4th order temporal integration
+!
+! Jack Bartlett (18/06/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in) :: dt
+
+double precision niprime(m),nitemp(m)
+double precision k1(m),k2(m),k3(m),k4(m)
+
+!----------------------------------------------------------------------------------------------
+
+call pbe_ydot_droplet(ni_droplet,niprime,dt)
+k1 = niprime * dt
+nitemp = ni_droplet + 0.5D0 * k1
+call pbe_ydot_droplet(nitemp,niprime,dt)
+k2 = niprime * dt
+nitemp = ni_droplet + 0.5D0 * k2
+call pbe_ydot_droplet(nitemp,niprime,dt)
+k3 = niprime * dt
+nitemp = ni_droplet + k3
+call pbe_ydot_droplet(nitemp,niprime,dt)
+k4 = niprime * dt
+ni_droplet = ni_droplet + (1.D0 / 6.D0) * k1 + (1.D0 / 3.D0) * k2 + (1.D0 / 3.D0) * k3 + (1.D0 / 6.D0) * k4
+
+
+end subroutine pbe_integ_RK4
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_ydot_droplet(ni_droplet_temp,ni_droplet_prime,dt)
+
+!**********************************************************************************************
+!
+! Calculates the right hand side of the droplet ODE to be integrated
 !
 ! By Stelios Rigopoulos
 ! Modified by Jack Bartlett (30/05/2025)
@@ -278,35 +253,28 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m), intent(out) :: niprime_crystal
-
+double precision, dimension(m), intent(in)  :: ni_droplet_temp
+double precision, dimension(m), intent(out) :: ni_droplet_prime
 double precision, intent(in) :: dt
 
-double precision growth_source,growth_mass_source,params(1)
+double precision growth_source,growth_mass_source
 
 integer index
 
 !----------------------------------------------------------------------------------------------
 
-niprime_crystal = 0. ! d(ni)/dt
-params(1) = 0.
+ni_droplet_prime = 0. ! d(ni)/dt
 
 
 ! Nucleation
 ! Is there any homogeneous ice nucleation?
 
 
-! Crystal growth
-if (supersaturation_i>0) then
-
-  do index = 1,m
-    ! growth_tvd has been modified to only work with crystals to allow compile
-    call growth_tvd(ni_crystal, index, supersaturation_i, dt, growth_source)
-    niprime_crystal(index) = niprime_crystal(index) + growth_source
-  end do
-
-  ! Else niprime_crystal(index) does not change
-end if
+! Particle growth
+do index=1,m
+  call growth_tvd(ni_droplet_temp, index, dt, growth_source)
+  ni_droplet_prime(index) = ni_droplet_prime(index) + growth_source
+end do
 
 
 !Aggregation
@@ -314,14 +282,257 @@ if (agg_kernel>0) then
   ! CFV formulation of Liu and Rigopoulos (2019)
   ! Note 1: current value of niprime is augmented within pbe_agg_cfv
   ! Note 2: contracting grid is not implemented
-  call pbe_agg_cfv(dv,v_m,ni_crystal,niprime_crystal)
+  call pbe_agg_cfv(dv,v_m,ni_droplet_temp,ni_droplet_prime)
 end if
 
 !Fragmentation
 if (break_const>0.) then
-  call pbe_breakage_cfv(niprime_crystal,ni_crystal)
+  call pbe_breakage_cfv(ni_droplet_prime,ni_droplet_temp)
 end if
 
+end subroutine pbe_ydot_droplet
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_ydot_crystal(ni_crystal_temp,ni_crystal_prime,dt)
+
+!**********************************************************************************************
+!
+! Calculates the right hand side of the crystal ODE to be integrated
+!
+! By Stelios Rigopoulos
+! Modified by Jack Bartlett (30/05/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, dimension(m), intent(in)  :: ni_crystal_temp
+double precision, dimension(m), intent(out) :: ni_crystal_prime
+double precision, intent(in) :: dt
+
+double precision growth_source,growth_mass_source
+
+integer index
+
+!----------------------------------------------------------------------------------------------
+
+ni_crystal_prime = 0. ! d(ni)/dt
+
+
+
 end subroutine pbe_ydot_crystal
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_ydot_kappa(kappa_temp,ni_droplet_prime,kappa_prime,dt)
+
+!**********************************************************************************************
+!
+! Calculates the right hand side of the hygroscopicity ODE to be integrated
+!
+! By Jack Bartlett (18/06/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, dimension(m), intent(in)  :: kappa_temp
+double precision, dimension(m), intent(in)  :: ni_droplet_prime
+double precision, dimension(m), intent(out) :: kappa_prime
+double precision, intent(in) :: dt
+
+double precision nkappa(m) ! total quantity of kappa
+double precision growth_source,growth_mass_source
+
+integer index
+
+!----------------------------------------------------------------------------------------------
+
+kappa_prime= 0.
+
+nkappa = kappa_temp * ni_droplet
+
+
+! Particle growth
+do index=1,m
+  call growth_tvd(nkappa, index, dt, growth_source)
+  kappa_prime(index) = kappa_prime(index) + growth_source
+end do
+
+! No change in hygroscopicity due to condensation
+
+!Aggregation - make include correct birth/death rates of kappa
+if (agg_kernel>0) then
+  ! CFV formulation of Liu and Rigopoulos (2019)
+  ! Note 1: current value of niprime is augmented within pbe_agg_cfv
+  ! Note 2: contracting grid is not implemented
+  call pbe_agg_cfv(dv,v_m,nkappa,kappa_prime)
+end if
+
+!Fragmentation
+if (break_const>0.) then
+  call pbe_breakage_cfv(kappa_prime,nkappa)
+end if
+
+! Change in ni_droplet
+kappa_prime = kappa_prime - kappa * ni_droplet_prime
+
+! Scaling
+kappa_prime = kappa_prime/ni_droplet
+
+end subroutine pbe_ydot_kappa
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_ydot_rho(rho_temp,ni_droplet_prime,rho_prime,dt)
+
+!**********************************************************************************************
+!
+! Calculates the right hand side of the mass density ODE to be integrated
+!
+! By Jack Bartlett (18/06/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, dimension(m), intent(in)  :: rho_temp
+double precision, dimension(m), intent(in)  :: ni_droplet_prime
+double precision, dimension(m), intent(out) :: rho_prime
+double precision, intent(in) :: dt
+
+double precision nrho(m) ! total quantity of rho
+double precision growth_source,g_term
+
+integer index
+
+!----------------------------------------------------------------------------------------------
+
+rho_prime= 0.
+
+nrho = rho_temp * ni_droplet
+
+
+! Particle growth
+do index=1,m
+  call growth_tvd(nrho, index, dt, growth_source)
+  rho_prime(index) = rho_prime(index) + growth_source
+end do
+
+! Condensation
+do index=1,m
+  call calc_growth_rate_liquid(index, .false., g_term)
+  rho_prime(index) = rho_prime(index) + ni_droplet(index) * (water_density - rho(index)) * g_term / v_m(index)
+end do
+
+!Aggregation - make include correct birth/death rates of rho
+if (agg_kernel>0) then
+  ! CFV formulation of Liu and Rigopoulos (2019)
+  ! Note 1: current value of niprime is augmented within pbe_agg_cfv
+  ! Note 2: contracting grid is not implemented
+  call pbe_agg_cfv(dv,v_m,nrho,rho_prime)
+end if
+
+!Fragmentation
+if (break_const>0.) then
+  call pbe_breakage_cfv(rho_prime,nrho)
+end if
+
+! Change in ni_droplet
+rho_prime = rho_prime - rho * ni_droplet_prime
+
+! Scaling
+rho_prime = rho_prime/ni_droplet
+
+end subroutine pbe_ydot_rho
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_ydot_f_dry(f_dry_temp,ni_droplet_prime,f_dry_prime,dt)
+
+!**********************************************************************************************
+!
+! Calculates the right hand side of the dry volume fraction ODE to be integrated
+!
+! By Jack Bartlett (18/06/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, dimension(m), intent(in)  :: f_dry_temp
+double precision, dimension(m), intent(in)  :: ni_droplet_prime
+double precision, dimension(m), intent(out) :: f_dry_prime
+double precision, intent(in) :: dt
+
+double precision nf_dry(m) ! total quantity of f_dry
+double precision growth_source,g_term
+
+integer index
+
+!----------------------------------------------------------------------------------------------
+
+f_dry_prime= 0.
+
+nf_dry = f_dry_temp * ni_droplet
+
+
+! Particle growth
+do index=1,m
+  call growth_tvd(nf_dry, index, dt, growth_source)
+  f_dry_prime(index) = f_dry_prime(index) + growth_source
+end do
+
+! Condensation
+do index=1,m
+  call calc_growth_rate_liquid(index, .false., g_term)
+  f_dry_prime(index) = f_dry_prime(index) - ni_droplet(index) * f_dry(index) * g_term / v_m(index)
+end do
+
+!Aggregation - make include correct birth/death rates of f_dry
+if (agg_kernel>0) then
+  ! CFV formulation of Liu and Rigopoulos (2019)
+  ! Note 1: current value of niprime is augmented within pbe_agg_cfv
+  ! Note 2: contracting grid is not implemented
+  call pbe_agg_cfv(dv,v_m,nf_dry,f_dry_prime)
+end if
+
+!Fragmentation
+if (break_const>0.) then
+  call pbe_breakage_cfv(f_dry_prime,nf_dry)
+end if
+
+! Change in ni_droplet
+f_dry_prime = f_dry_prime - f_dry * ni_droplet_prime
+
+! Scaling
+f_dry_prime = f_dry_prime/ni_droplet
+
+end subroutine pbe_ydot_f_dry
 
 !**********************************************************************************************
