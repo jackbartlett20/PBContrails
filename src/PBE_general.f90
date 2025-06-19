@@ -257,12 +257,6 @@ use gauss_mod
 
 implicit none
 
-double precision r_m, n
-double precision n_tot, r_mean, sigma, kappa_i, rho_i, f_dry_i
-integer i
-
-character(len=256) :: line
-
 !----------------------------------------------------------------------------------------------
 
 ! Initialise temperature, vapour pressure, and other environment variables
@@ -272,6 +266,58 @@ call pbe_set_environment(0.D0)
 
 ni_droplet = 0.D0
 ni_crystal = 0.D0
+
+call pbe_read_species()
+
+
+! Initialise nucleation
+nuc = 0.D0
+
+! Initialise aggregation
+if (agg_kernel>0) then
+  call PBE_agg_fvLocate(v,1)
+  call PBE_agg_fvLocate(v,2)
+  call PBE_agg_beta(1)
+  call PBE_agg_beta(2)
+end if
+
+if (break_const>0.) then
+  call gauss_init(order_of_gq)
+  call pbe_breakage_calc(1)
+  allocate(break_kernel_store(break_global_cntr,3))
+  call pbe_breakage_calc(2)
+end if
+
+
+end subroutine pbe_init
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_read_species()
+
+!**********************************************************************************************
+!
+! Initialises species data
+!
+! Jack Bartlett (19/06/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision r_m, n
+double precision n_tot, r_mean, sigma, kappa_i, rho_i, f_dry_i
+integer i
+
+character(len=256) :: line
+
+!----------------------------------------------------------------------------------------------
 
 open(30,file='pbe/species.in')
 do i=1,4
@@ -323,27 +369,7 @@ do
 end do
 close(30)
 
-
-! Initialise nucleation
-nuc = 0.D0
-
-! Initialise aggregation
-if (agg_kernel>0) then
-  call PBE_agg_fvLocate(v,1)
-  call PBE_agg_fvLocate(v,2)
-  call PBE_agg_beta(1)
-  call PBE_agg_beta(2)
-end if
-
-if (break_const>0.) then
-  call gauss_init(order_of_gq)
-  call pbe_breakage_calc(1)
-  allocate(break_kernel_store(break_global_cntr,3))
-  call pbe_breakage_calc(2)
-end if
-
-
-end subroutine pbe_init
+end subroutine pbe_read_species
 
 !**********************************************************************************************
 
@@ -388,15 +414,15 @@ integer i
 !----------------------------------------------------------------------------------------------
 
 ! Allocate arrays
-allocated_size_bytes = 10*8*m
+allocated_size_bytes = 14*8*m
 if (allocated_size_bytes > 1000**3) then
-  write(*,*) "Allocating ",(allocated_size_bytes/(1000**3))," GB to arrays."
+  write(*,*) "Allocating around",(allocated_size_bytes/(1000**3))," GB to arrays."
 else if (allocated_size_bytes > 1000**2) then
-  write(*,*) "Allocating ",(allocated_size_bytes/(1000**2))," MB to arrays."
+  write(*,*) "Allocating around",(allocated_size_bytes/(1000**2))," MB to arrays."
 else if (allocated_size_bytes > 1000) then
-  write(*,*) "Allocating ",(allocated_size_bytes/(1000**2))," kB to arrays."
+  write(*,*) "Allocating around",(allocated_size_bytes/(1000))," kB to arrays."
 else
-  write(*,*) "Allocating ",(allocated_size_bytes)," bytes to arrays."
+  write(*,*) "Allocating around",(allocated_size_bytes)," bytes to arrays."
 end if
 allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),ni_droplet(m),ni_crystal(m),kappa(m),rho(m),f_dry(m))
 
@@ -750,7 +776,7 @@ integer i
 
 !----------------------------------------------------------------------------------------------
 
-call pbe_moments(nitemp,moment,meansize)
+call pbe_moments(ani,moment,meansize)
 
 do i=1,m
   if (abs(ani(i))<1.D-16) then

@@ -55,20 +55,23 @@ end if
 
 do index=1,m
   if (kappa(index)<0.D0) then
-    write(*,*) "Found kappa = ",kappa(index)," at index ",index
+    write(*,*) "Found kappa = ",kappa(index)," at index ",index,". Stopping."
     stop
   else if (kappa(index)>1.D0) then
-    write(*,*) "Found kappa = ",kappa(index)," at index ",index
+    write(*,*) "Found kappa = ",kappa(index)," at index ",index,". Stopping."
     stop
   else if (rho(index)<0.D0) then
-    write(*,*) "Found rho = ",rho(index)," at index ",index
+    write(*,*) "Found rho = ",rho(index)," at index ",index,". Stopping."
     stop
   else if (f_dry(index)<0.D0) then
-    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index
+    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Stopping."
     stop
-  else if (f_dry(index)>1.D0) then
-    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index
+  else if ((f_dry(index)>1.D0).and.(f_dry(index)<1.1D0)) then
+    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Continuing."
     f_dry(index) = 1.D0
+  else if (f_dry(index)>1.1D0) then
+    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Stopping."
+    stop
   end if
 end do
 

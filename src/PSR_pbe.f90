@@ -57,6 +57,8 @@ do i_step = 1,n_steps
 
   current_time = current_time + dt
 
+  write(*,*) "Current time: ",current_time
+
   ! Update temperature and vapour pressure
   call pbe_set_environment(current_time)
 

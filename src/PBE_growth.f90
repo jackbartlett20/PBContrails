@@ -229,7 +229,7 @@ diff_coeff_mod = diff_coeff / ( r/(r + 0.7*mfp_air) + &
                               & diff_coeff/(r*accom_coeff) * &
                               & sqrt(2*pi*water_molar_mass/(ideal_gas_constant*temperature)) )
 
-g_term = 1.D-4 * 4.D0*pi*r * (diff_coeff_mod * water_molar_mass)/(rho_i * ideal_gas_constant * temperature) * (Pvap - S_droplet*Psat_l)
+g_term = 1.D-6 * 4.D0*pi*r * (diff_coeff_mod * water_molar_mass)/(rho_i * ideal_gas_constant * temperature) * (Pvap - S_droplet*Psat_l)
 
 end subroutine calc_growth_rate_liquid
 

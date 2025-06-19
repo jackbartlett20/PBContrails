@@ -2,8 +2,8 @@ PARTICLE SPECIES INPUT DATA
 
 Total number density (m-3), Mean radius (m), SD, Hygroscopicity, Mass density (kgm-3), Dry volume fraction
 ---------------------------------------------------------------------------------------------------
-8e11, 20.E-9, 1.823E-1, 0.01, 50., 0.99
-8e10, 15.E-9, 5E-2, 0.5, 1000., 0.99
+8e11, 20.E-9, 1.823E-1, 0.01, 50., 1.
+8e10, 15.E-9, 5E-2, 0.5, 1000., 1.
 END
 
 Values in a line must be separated by commas. Spaces are ignored.
