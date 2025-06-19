@@ -128,15 +128,16 @@ double precision ni_droplet_prime(m),kappa_prime(m),rho_prime(m),f_dry_prime(m)
 !----------------------------------------------------------------------------------------------
 
 call pbe_ydot_droplet(ni_droplet,ni_droplet_prime,dt)
-ni_droplet = ni_droplet + ni_droplet_prime * dt
 
 call pbe_ydot_kappa(kappa,ni_droplet_prime,kappa_prime,dt)
-kappa = kappa + kappa_prime * dt
 
 call pbe_ydot_rho(rho,ni_droplet_prime,rho_prime,dt)
-rho = rho + rho_prime * dt
 
 call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime,dt)
+
+ni_droplet = ni_droplet + ni_droplet_prime * dt
+kappa = kappa + kappa_prime * dt
+rho = rho + rho_prime * dt
 f_dry = f_dry + f_dry_prime * dt
 
 

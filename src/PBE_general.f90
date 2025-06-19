@@ -63,10 +63,12 @@ double precision Pvap,Pvap_exhaust,Pvap_ambient
 double precision Psat_l,Psat_i
 double precision supersaturation_l,supersaturation_i
 double precision mixing_grad
+double precision air_density
 double precision n_sat
 double precision vapour_thermal_speed
-double precision diff_coeff
+double precision diffusivity, k_air
 double precision mfp_air
+double precision l_v
 
 
 ! Double precision kind
@@ -78,11 +80,14 @@ real(kind=dp), parameter :: pi = 3.141592654D0
 ! Physical constants
 real(kind=dp), parameter :: ideal_gas_constant = 8.314D0 ! (J mol-1 K-1)
 real(kind=dp), parameter :: boltzmann_constant = 1.380649D-23 ! (J K-1)
-real(kind=dp), parameter :: water_molar_mass = 0.01801528D0 ! (kg mol-1)
+real(kind=dp), parameter :: water_molar_mass = 18.D-3 ! (kg mol-1)
+real(kind=dp), parameter :: air_molar_mass = 28.9D-3 ! (kg mol-1)
 real(kind=dp), parameter :: avogadro_constant = 6.02214D23 ! (mol-1)
 real(kind=dp), parameter :: water_molecular_vol = 2.97D-29 ! (m3)
 real(kind=dp), parameter :: water_molecular_mass = 2.99D-26 ! (kg)
 real(kind=dp), parameter :: water_density = 1.E3 ! (kgm-3)
+real(kind=dp), parameter :: cp_air = 1004 ! (J kg-1 K-1)
+
 
 ! Plume diffusion constants
 real(kind=dp), parameter :: eps_diffusivity = 0.0285D0 ! turbulent diffusivity ()
@@ -627,18 +632,29 @@ Psat_i = 6.1115D2*exp((23.036D0 - (temperature-273.15D0)/333.7D0) * ((temperatur
 supersaturation_l = Pvap/Psat_l - 1.D0
 supersaturation_i = Pvap/Psat_i - 1.D0
 
-! Update mean free path of air - assumes effective collision diameter 0.37 nm
+! Density of air (kg m-3)
+air_density = P_ambient * air_molar_mass / (ideal_gas_constant * temperature)
+
+! Mean free path of air (m) - assumes effective collision diameter 0.37 nm
 mfp_air = (boltzmann_constant*temperature)/(sqrt(2*pi)*(0.37D-9)**2*P_ambient)
 
-! Update H2O density
+! H2O density
 !comp_densities(4) = 1.D3
 
-! H2O number concentration at water saturation - not totally sure this is correct
+! H2O number concentration at water saturation (m-3)
 n_sat = avogadro_constant * Pvap / (ideal_gas_constant * temperature)
 
+! Thermal speed of water vapour (m s-1)
 vapour_thermal_speed = sqrt(8 * boltzmann_constant * temperature / (pi*water_molecular_mass))
 
-diff_coeff = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325.D0 / P_ambient)
+! Diffusivity (m2 s-1) - Pruppacher and Klett eq. 13-3
+diffusivity = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325.D0 / P_ambient)
+
+! Thermal conductivity of air (J m-1 s-1 K-1) - Seinfeld and Pandis eq. 17.54
+k_air = 1.D-3 * (4.39D0 + 0.071D0 * temperature)
+
+! Specific latent heat of vaporisation of water (J kg-1)
+l_v = 2.501D6 - 2.37D3 * (temperature - 273.15D0)
 
 
 end subroutine pbe_set_environment

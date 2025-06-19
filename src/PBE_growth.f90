@@ -182,7 +182,8 @@ double precision, intent(out)              :: g_term
 double precision surf_tens, accom_coeff
 double precision r, f_dry_i, kappa_i, rho_i
 double precision raoult_term, kelvin_term, S_droplet
-double precision diff_coeff_mod
+double precision diffusivity_mod, k_air_mod
+double precision F_d, F_k
 
 !----------------------------------------------------------------------------------------------
 
@@ -225,11 +226,19 @@ kelvin_term = exp((2.D0 * surf_tens * water_molar_mass)/(ideal_gas_constant*temp
 
 S_droplet = raoult_term * kelvin_term
 
-diff_coeff_mod = diff_coeff / ( r/(r + 0.7*mfp_air) + &
-                              & diff_coeff/(r*accom_coeff) * &
-                              & sqrt(2*pi*water_molar_mass/(ideal_gas_constant*temperature)) )
+diffusivity_mod = diffusivity / ( r/(r + 0.7*mfp_air) + &
+                                & diffusivity/(r*accom_coeff) * &
+                                & sqrt(2*pi*water_molar_mass/(ideal_gas_constant*temperature)) )
 
-g_term = 1.D-6 * 4.D0*pi*r * (diff_coeff_mod * water_molar_mass)/(rho_i * ideal_gas_constant * temperature) * (Pvap - S_droplet*Psat_l)
+k_air_mod = k_air / ( r/(r + 0.7*mfp_air) + &
+                    & k_air/(r*accom_coeff*air_density*cp_air) * &
+                    & sqrt(2*pi*air_molar_mass/(ideal_gas_constant*temperature)) )
+
+F_d = (water_density * ideal_gas_constant * temperature) / (Psat_l * diffusivity_mod * water_molar_mass)
+
+F_k = (l_v * water_density)/(k_air_mod * temperature) * (l_v*water_molar_mass/(ideal_gas_constant*temperature) - 1)
+
+g_term = (4*pi*r) * 1/(F_d + F_k) * (Pvap/Psat_l - S_droplet)
 
 end subroutine calc_growth_rate_liquid
 
@@ -299,7 +308,7 @@ double precision accom_coeff, correction_factor
 
 accom_coeff = 1.D0
 
-correction_factor = 1 + accom_coeff * vapour_thermal_speed * r / (4.D0 * diff_coeff)
+correction_factor = 1 + accom_coeff * vapour_thermal_speed * r / (4.D0 * diffusivity)
 
 J = (pi * r**2 * accom_coeff * vapour_thermal_speed * supersaturation * n_sat) / correction_factor
 
