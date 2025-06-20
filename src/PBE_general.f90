@@ -62,7 +62,6 @@ double precision P_ambient
 double precision Pvap,Pvap_exhaust,Pvap_ambient
 double precision Psat_l,Psat_i
 double precision supersaturation_l,supersaturation_i
-double precision mixing_grad
 double precision air_density
 double precision n_sat
 double precision vapour_thermal_speed
@@ -419,7 +418,7 @@ integer i
 !----------------------------------------------------------------------------------------------
 
 ! Allocate arrays
-allocated_size_bytes = 14*8*m
+allocated_size_bytes = 17*8*m
 if (allocated_size_bytes > 1000**3) then
   write(*,*) "Allocating around",(allocated_size_bytes/(1000**3))," GB to arrays."
 else if (allocated_size_bytes > 1000**2) then
@@ -596,7 +595,7 @@ implicit none
 
 double precision, intent(in) :: current_time
 
-double precision dilution_factor, temperature_new
+double precision dilution_factor, mixing_grad, temperature_new
 
 !----------------------------------------------------------------------------------------------
 
@@ -768,7 +767,7 @@ subroutine pbe_output_psd(ani,filename,current_time,first_write)
 
 !**********************************************************************************************
 !
-! Writes PSD each time step
+! Writes PSD
 !
 ! By Jack Bartlett (29/05/2025)
 !
@@ -825,13 +824,13 @@ end subroutine pbe_output_psd
 
 !**********************************************************************************************
 
-subroutine pbe_output_crystal_psd(current_time,first_write)
+subroutine pbe_output_property(property,filename,current_time,first_write)
 
 !**********************************************************************************************
 !
-! Writes ice crystal PSD
+! Writes property
 !
-! By Jack Bartlett (10/06/2025)
+! By Jack Bartlett (20/06/2025)
 !
 !**********************************************************************************************
 
@@ -839,44 +838,29 @@ use pbe_mod
 
 implicit none
 
+double precision, dimension(m), intent(in) :: property
+character(len=30), intent(in) :: filename
 double precision, intent(in) :: current_time
 logical, intent(in) :: first_write
-
-double precision :: nitemp(m)
-double precision, dimension(0:1) :: moment
-
-double precision meansize
 
 integer i
 
 !----------------------------------------------------------------------------------------------
 
-nitemp = ni_crystal
-
-call pbe_moments(nitemp,moment,meansize)
-
-do i=1,m
-  if (abs(nitemp(i))<1.D-16) then
-    nitemp(i) = 0.D0
-  end if
-end do
-
-
 if (first_write) then
-  open(99,file='output/psd_crystal.out',status='replace')
+  open(99,file=filename,status='replace')
 else
-  open(99,file='output/psd_crystal.out',status='old',position='append')
+  open(99,file=filename,status='old',position='append')
 end if
 do i=1,m
-  write(99,1001) current_time, v_m(i), dv(i), d_m(i), nitemp(i), &
-  & nitemp(i)*dv(i)/moment(0), v_m(i)*nitemp(i), v_m(i)*nitemp(i)*dv(i)/moment(1)
+  write(99,1003) current_time, v_m(i), property(i)
 end do
 close(99)
 
 
-1001 format(8E20.10)
+1003 format(3E20.10)
 
-end subroutine pbe_output_crystal_psd
+end subroutine pbe_output_property
 
 !**********************************************************************************************
 
@@ -888,7 +872,7 @@ subroutine pbe_output_env(current_time,first_write)
 
 !**********************************************************************************************
 !
-! Writes environment variables each time step
+! Writes environment variables
 !
 ! By Jack Bartlett (29/05/2025)
 !

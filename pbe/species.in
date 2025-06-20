@@ -1,8 +1,8 @@
 PARTICLE SPECIES INPUT DATA
 
 Total number density (m-3), Mean radius (m), SD, Hygroscopicity, Mass density (kgm-3), Dry volume fraction
----------------------------------------------------------------------------------------------------
-8e11, 20.E-9, 1.823E-1, 0.01, 50., 1.
+----------------------------------------------------------------------------------------------------------
+8e11, 20.E-9, 1.823E-1, 0.01, 600., 1.
 8e10, 15.E-9, 5E-2, 0.5, 1000., 1.
 END
 
@@ -13,5 +13,5 @@ Total number density (m-3): total number density of species
 Mean radius (m): mean radius of species; input e.g. 1 nm as 1.E-9
 SD: standard deviation of particle radius in log-space; no units
 Hygroscopicity: hygroscopicity parameter; 1 for very hygroscopic, 0 for unhygroscopic
-Mass density (kgm-3): mass desnity of particle
+Mass density (kgm-3): mass density of particle
 Dry volume fraction: fraction of particle volume that is not water

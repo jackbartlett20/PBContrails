@@ -57,8 +57,6 @@ do i_step = 1,n_steps
 
   current_time = current_time + dt
 
-  write(*,*) "Current time: ",current_time
-
   ! Update temperature and vapour pressure
   call pbe_set_environment(current_time)
 
@@ -70,16 +68,15 @@ do i_step = 1,n_steps
     call PBE_agg_beta(2)
   end if
 
-  ! Update freezing (before soot so a soot particle cannot immediately turn to ice)
+  ! Update freezing
   ! Currently assumes whole volume is water
   call pbe_freezing(dt)
 
-  ! Integrate - for processes which change over time (not just those which alter ni)
-  ! Pvap is reduced by growth here
+  ! Integrate
   call pbe_integ(dt)
 
 
-  ! Write PSD
+  ! Write outputs
   if ((i_write==n_write).or.(i_step==n_steps)) then
 
     ! Droplets
@@ -89,6 +86,14 @@ do i_step = 1,n_steps
     ! Crystals
     filename = 'output/psd_crystal.out'
     call pbe_output_psd(ni_crystal, filename, current_time, first_write)
+
+    ! Properties
+    filename = 'output/hygroscopicity.out'
+    call pbe_output_property(kappa, filename, current_time, first_write)
+    filename = 'output/density.out'
+    call pbe_output_property(rho, filename, current_time, first_write)
+    filename = 'output/dry_fraction.out'
+    call pbe_output_property(f_dry, filename, current_time, first_write)
 
     ! Environment variables
     call pbe_output_env(current_time, first_write)

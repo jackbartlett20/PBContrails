@@ -6,7 +6,7 @@ PBE INPUT DATA
 215.                            ! Ambient temperature (K) -> T_ambient
 2.E4                            ! Air pressure (Pa) -> P_ambient
 400.                            ! Vapour pressure in exhaust (Pa) -> Pvap_exhaust
-7.0                             ! Ambient vapour pressure (Pa) -> Pvap_ambient
+5.0                             ! Ambient vapour pressure (Pa) -> Pvap_ambient
 0                               ! Mass-conservative growth discretisation -> i_gm
 0.                              ! Fragmentation rate constant -> break_const
 3                               ! Order of Gaussian quadrature (for fragmentation) -> order_of_gq

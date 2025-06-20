@@ -67,7 +67,7 @@ do index=1,m
     write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Stopping."
     stop
   else if ((f_dry(index)>1.D0).and.(f_dry(index)<1.1D0)) then
-    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Continuing."
+  !  write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Continuing."
     f_dry(index) = 1.D0
   else if (f_dry(index)>1.1D0) then
     write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Stopping."
@@ -169,6 +169,8 @@ double precision ni_droplet_prime(m),kappa_prime(m),rho_prime(m),f_dry_prime(m)
 double precision temp(m)
 
 !----------------------------------------------------------------------------------------------
+
+! Change order so arrays are updated after all rates have been calculated
 
 call pbe_ydot_droplet(ni_droplet,ni_droplet_prime,dt)
 temp = ni_droplet + 0.5D0 * ni_droplet_prime * dt
@@ -424,7 +426,7 @@ double precision, dimension(m), intent(in)  :: ni_droplet_prime
 double precision, dimension(m), intent(out) :: rho_prime
 double precision, intent(in) :: dt
 
-double precision nrho(m) ! total quantity of rho
+!double precision nrho(m) ! total quantity of rho
 double precision growth_source,g_term
 
 integer index
@@ -433,33 +435,24 @@ integer index
 
 rho_prime= 0.
 
-nrho = rho_temp * ni_droplet
+!nrho = rho_temp * ni_droplet
 
 
 ! Particle growth
 do index=1,m
-  call growth_tvd(nrho, index, dt, growth_source)
+  call growth_tvd_rho(ni_droplet, rho_temp, index, dt, growth_source)
   rho_prime(index) = rho_prime(index) + growth_source
 end do
 
 ! Condensation
-do index=1,m
-  call calc_growth_rate_liquid(index, .false., g_term)
-  rho_prime(index) = rho_prime(index) + ni_droplet(index) * (water_density - rho(index)) * g_term / v_m(index)
-end do
+!do index=1,m
+!  call calc_growth_rate_liquid(index, .false., g_term)
+!  rho_prime(index) = rho_prime(index) + ni_droplet(index) * (water_density - rho(index)) * g_term / v_m(index)
+!end do
 
 !Aggregation - make include correct birth/death rates of rho
-if (agg_kernel>0) then
-  ! CFV formulation of Liu and Rigopoulos (2019)
-  ! Note 1: current value of niprime is augmented within pbe_agg_cfv
-  ! Note 2: contracting grid is not implemented
-  call pbe_agg_cfv(dv,v_m,nrho,rho_prime)
-end if
 
 !Fragmentation
-if (break_const>0.) then
-  call pbe_breakage_cfv(rho_prime,nrho)
-end if
 
 ! Change in ni_droplet
 rho_prime = rho_prime - rho * ni_droplet_prime
@@ -494,7 +487,7 @@ double precision, dimension(m), intent(in)  :: ni_droplet_prime
 double precision, dimension(m), intent(out) :: f_dry_prime
 double precision, intent(in) :: dt
 
-double precision nf_dry(m) ! total quantity of f_dry
+!double precision nf_dry(m) ! total quantity of f_dry
 double precision growth_source,g_term
 
 integer index
@@ -503,33 +496,24 @@ integer index
 
 f_dry_prime= 0.
 
-nf_dry = f_dry_temp * ni_droplet
+!nf_dry = f_dry_temp * ni_droplet
 
 
 ! Particle growth
 do index=1,m
-  call growth_tvd(nf_dry, index, dt, growth_source)
+  call growth_tvd_f_dry(ni_droplet, f_dry_temp, index, dt, growth_source)
   f_dry_prime(index) = f_dry_prime(index) + growth_source
 end do
 
 ! Condensation
-do index=1,m
-  call calc_growth_rate_liquid(index, .false., g_term)
-  f_dry_prime(index) = f_dry_prime(index) - ni_droplet(index) * f_dry(index) * g_term / v_m(index)
-end do
+!do index=1,m
+!  call calc_growth_rate_liquid(index, .false., g_term)
+!  f_dry_prime(index) = f_dry_prime(index) - ni_droplet(index) * f_dry(index) * g_term / v_m(index)
+!end do
 
 !Aggregation - make include correct birth/death rates of f_dry
-if (agg_kernel>0) then
-  ! CFV formulation of Liu and Rigopoulos (2019)
-  ! Note 1: current value of niprime is augmented within pbe_agg_cfv
-  ! Note 2: contracting grid is not implemented
-  call pbe_agg_cfv(dv,v_m,nf_dry,f_dry_prime)
-end if
 
 !Fragmentation
-if (break_const>0.) then
-  call pbe_breakage_cfv(f_dry_prime,nf_dry)
-end if
 
 ! Change in ni_droplet
 f_dry_prime = f_dry_prime - f_dry * ni_droplet_prime
