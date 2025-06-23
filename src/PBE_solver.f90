@@ -140,8 +140,8 @@ call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime,dt)
 
 ni_droplet = ni_droplet + ni_droplet_prime * dt
 kappa = kappa + kappa_prime * dt
-rho = rho + rho_prime * dt
-f_dry = f_dry + f_dry_prime * dt
+!rho = rho + rho_prime * dt
+!f_dry = f_dry + f_dry_prime * dt
 
 
 end subroutine pbe_integ_euler

@@ -222,8 +222,7 @@ if (g_termr>0.D0) then
   if (index==1) then
 
     gnl = 0.0D0
-    call rho_growth(2, 1, rho_temp(2), rho_after_a)
-    gnr = g_termr * 0.5 * (ni(1)*rho_temp(1) + ni(2)*rho_after_a)
+    gnr = g_termr * 0.5 * (ni(1)*rho_temp(1) + ni(2)*rho_temp(2))
 
   else if (index==m) then
 
@@ -232,7 +231,7 @@ if (g_termr>0.D0) then
     call rho_growth(m-1, m, rho_temp(m-1), rho_after_a)
     call rho_growth(m-2, m, rho_temp(m-2), rho_after_b)
     gnl = g_terml * (ni(m-1)*rho_after_a + 0.5 * phi * (ni(m-1)*rho_after_a - ni(m-2)*rho_after_b))
-    gnr = g_termr * (ni(m)*rho_temp(m) + 0.5*(ni(m)*rho_temp(m) - ni(m-1)*rho_after_a))
+    gnr = g_termr * (ni(m)*rho_temp(m) + 0.5*(ni(m)*rho_temp(m) - ni(m-1)*rho_temp(m-1)))
 
   else
 
@@ -242,8 +241,7 @@ if (g_termr>0.D0) then
     nr = ni(index+1)
     rr = (nr - nc + eps) / (nc - nl + eps)
     phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
-    call rho_growth(index-1, index, rho_temp(index-1), rho_after_a)
-    gnr = g_termr * (nc*rho_temp(index) + 0.5 * phi * (nc*rho_temp(index) - nl*rho_after_a))
+    gnr = g_termr * (nc*rho_temp(index) + 0.5 * phi * (nc*rho_temp(index) - nl*rho_temp(index-1)))
 
     ! Fluxes at cell left surface
     if (index==2 ) then
@@ -266,18 +264,17 @@ else
   ! growth rate is along negative direction
   if (index==1) then
 
-    call rho_growth(2, 1, rho_temp(2), rho_after_a)
-    gnl = g_terml * (ni(1)*rho_temp(1) + 0.5 * (ni(1)*rho_temp(1) - ni(2)*rho_after_a))
+    gnl = g_terml * (ni(1)*rho_temp(1) + 0.5 * (ni(1)*rho_temp(1) - ni(2)*rho_temp(2)))
     rr = (ni(1) - ni(2) + eps) / (ni(2) - ni(3) + eps)
     phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
+    call rho_growth(2, 1, rho_temp(2), rho_after_a)
     call rho_growth(3, 1, rho_temp(3), rho_after_b)
     gnr = g_termr * (ni(2)*rho_after_a + 0.5 * phi * (ni(2)*rho_after_a - ni(3)*rho_after_b))
 
   else if (index==m) then
 
     gnr = 0
-    call rho_growth(m-1, m, rho_temp(m-1), rho_after_a)
-    gnl = g_terml * 0.5 * (ni(m)*rho_temp(m) + ni(m-1)*rho_after_a)
+    gnl = g_terml * 0.5 * (ni(m)*rho_temp(m) + ni(m-1)*rho_temp(m-1))
 
   else
 
@@ -302,8 +299,7 @@ else
     nr = ni(index+1)
     rl = (nl - nc + eps) / (nc - nr + eps)
     phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
-    call rho_growth(index+1, index, rho_temp(index+1), rho_after_a)
-    gnl = g_terml * (nc*rho_temp(index) + 0.5 * phi * (nc*rho_temp(index) - nr*rho_after_a))
+    gnl = g_terml * (nc*rho_temp(index) + 0.5 * phi * (nc*rho_temp(index) - nr*rho_temp(index+1)))
 
   end if
 
@@ -421,8 +417,7 @@ if (g_termr>0.D0) then
   if (index==1) then
 
     gnl = 0.0D0
-    call f_dry_growth(2, 1, f_dry_temp(2), f_dry_after_a)
-    gnr = g_termr * 0.5 * (ni(1)*f_dry_temp(1) + ni(2)*f_dry_after_a)
+    gnr = g_termr * 0.5 * (ni(1)*f_dry_temp(1) + ni(2)*f_dry_temp(2))
 
   else if (index==m) then
 
@@ -431,7 +426,7 @@ if (g_termr>0.D0) then
     call f_dry_growth(m-1, m, f_dry_temp(m-1), f_dry_after_a)
     call f_dry_growth(m-2, m, f_dry_temp(m-2), f_dry_after_b)
     gnl = g_terml * (ni(m-1)*f_dry_after_a + 0.5 * phi * (ni(m-1)*f_dry_after_a - ni(m-2)*f_dry_after_b))
-    gnr = g_termr * (ni(m)*f_dry_temp(m) + 0.5*(ni(m)*f_dry_temp(m) - ni(m-1)*f_dry_after_a))
+    gnr = g_termr * (ni(m)*f_dry_temp(m) + 0.5*(ni(m)*f_dry_temp(m) - ni(m-1)*f_dry_temp(m-1)))
 
   else
 
@@ -441,8 +436,7 @@ if (g_termr>0.D0) then
     nr = ni(index+1)
     rr = (nr - nc + eps) / (nc - nl + eps)
     phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
-    call f_dry_growth(index-1, index, f_dry_temp(index-1), f_dry_after_a)
-    gnr = g_termr * (nc*f_dry_temp(index) + 0.5 * phi * (nc*f_dry_temp(index) - nl*f_dry_after_a))
+    gnr = g_termr * (nc*f_dry_temp(index) + 0.5 * phi * (nc*f_dry_temp(index) - nl*f_dry_temp(index-1)))
 
     ! Fluxes at cell left surface
     if (index==2 ) then
@@ -465,18 +459,17 @@ else
   ! growth rate is along negative direction
   if (index==1) then
 
-    call f_dry_growth(2, 1, f_dry_temp(2), f_dry_after_a)
-    gnl = g_terml * (ni(1)*f_dry_temp(1) + 0.5 * (ni(1)*f_dry_temp(1) - ni(2)*f_dry_after_a))
+    gnl = g_terml * (ni(1)*f_dry_temp(1) + 0.5 * (ni(1)*f_dry_temp(1) - ni(2)*f_dry_temp(2)))
     rr = (ni(1) - ni(2) + eps) / (ni(2) - ni(3) + eps)
     phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
+    call f_dry_growth(2, 1, f_dry_temp(2), f_dry_after_a)
     call f_dry_growth(3, 1, f_dry_temp(3), f_dry_after_b)
     gnr = g_termr * (ni(2)*f_dry_after_a + 0.5 * phi * (ni(2)*f_dry_after_a - ni(3)*f_dry_after_b))
 
   else if (index==m) then
 
     gnr = 0
-    call f_dry_growth(m-1, m, f_dry_temp(m-1), f_dry_after_a)
-    gnl = g_terml * 0.5 * (ni(m)*f_dry_temp(m) + ni(m-1)*f_dry_after_a)
+    gnl = g_terml * 0.5 * (ni(m)*f_dry_temp(m) + ni(m-1)*f_dry_temp(m-1))
 
   else
 
@@ -501,8 +494,7 @@ else
     nr = ni(index+1)
     rl = (nl - nc + eps) / (nc - nr + eps)
     phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
-    call f_dry_growth(index+1, index, f_dry_temp(index+1), f_dry_after_a)
-    gnl = g_terml * (nc*f_dry_temp(index) + 0.5 * phi * (nc*f_dry_temp(index) - nr*f_dry_after_a))
+    gnl = g_terml * (nc*f_dry_temp(index) + 0.5 * phi * (nc*f_dry_temp(index) - nr*f_dry_temp(index+1)))
 
   end if
 
