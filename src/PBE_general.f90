@@ -317,11 +317,13 @@ implicit none
 
 double precision r_m, n
 double precision n_tot, r_mean, sigma, kappa_i, rho_i, f_dry_i
-integer i
+integer i, num_species
 
 character(len=256) :: line
 
 !----------------------------------------------------------------------------------------------
+
+num_species = 0
 
 open(30,file='pbe/species.in')
 do i=1,4
@@ -370,8 +372,11 @@ do
     ni_droplet(i) = ni_droplet(i) + n
   end do
 
+  num_species = num_species + 1
 end do
 close(30)
+
+write(*,*) "Read in ",num_species," species."
 
 end subroutine pbe_read_species
 

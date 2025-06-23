@@ -47,6 +47,7 @@ call calc_growth_rate_liquid(index, .true., g_termr)
 ! Growth rate at left boundary calculation
 call calc_growth_rate_liquid(index-1, .true., g_terml)
 
+
 ! Courant-Friedrichs-Lewy (CFL) condition (C <= 1 for PBE)
 courant = g_termr * dt / dv(index)
 if (courant>1) then

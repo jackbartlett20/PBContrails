@@ -9,7 +9,7 @@
 
 !**********************************************************************************************
 
-subroutine pbe_integ(dt)
+subroutine pbe_integ(dt, stop_flag)
 
 !**********************************************************************************************
 !
@@ -30,11 +30,14 @@ use pbe_mod
 implicit none
 
 double precision, intent(in) :: dt
+logical, intent(out) :: stop_flag
 
 double precision g_term, sum_gn
 integer index
 
 !----------------------------------------------------------------------------------------------
+
+stop_flag = .false.
 
 if (solver_pbe == 1) then
 
@@ -55,23 +58,23 @@ end if
 
 do index=1,m
   if (kappa(index)<0.D0) then
-    write(*,*) "Found kappa = ",kappa(index)," at index ",index,". Stopping."
-    stop
+    write(*,*) "Found kappa = ",kappa(index)," at index ",index
+    stop_flag = .true.
   else if (kappa(index)>1.D0) then
-    write(*,*) "Found kappa = ",kappa(index)," at index ",index,". Stopping."
-    stop
+    write(*,*) "Found kappa = ",kappa(index)," at index ",index
+    stop_flag = .true.
   else if (rho(index)<0.D0) then
-    write(*,*) "Found rho = ",rho(index)," at index ",index,". Stopping."
-    stop
+    write(*,*) "Found rho = ",rho(index)," at index ",index
+    stop_flag = .true.
   else if (f_dry(index)<0.D0) then
-    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Stopping."
-    stop
-  else if ((f_dry(index)>1.D0).and.(f_dry(index)<1.1D0)) then
+    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index
+    stop_flag = .true.
+  else if ((f_dry(index)>1.D0).and.(f_dry(index)<1.01D0)) then
   !  write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Continuing."
     f_dry(index) = 1.D0
-  else if (f_dry(index)>1.1D0) then
-    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Stopping."
-    stop
+  else if (f_dry(index)>1.01D0) then
+    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index
+    stop_flag = .true.
   end if
 end do
 
@@ -273,7 +276,7 @@ ni_droplet_prime = 0. ! d(ni)/dt
 
 
 ! Nucleation
-! Is there any homogeneous ice nucleation?
+! None unless homogeneous nucleation at high RH is added
 
 
 ! Particle growth
@@ -377,8 +380,6 @@ do index=1,m
   call growth_tvd(nkappa, index, dt, growth_source)
   kappa_prime(index) = kappa_prime(index) + growth_source
 end do
-
-! No change in hygroscopicity due to condensation
 
 !Aggregation - make include correct birth/death rates of kappa
 if (agg_kernel>0) then

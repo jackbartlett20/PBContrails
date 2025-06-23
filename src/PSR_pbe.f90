@@ -17,7 +17,7 @@ implicit none
 double precision int_time,tin,current_time,meansize,dt
 
 integer i,i_step,n_steps,iflag,flowflag,nin,i_write,n_write,total_writes
-logical first_write
+logical first_write, stop_flag
 integer agg_kernel_update
 
 character(len=30) filename
@@ -73,7 +73,12 @@ do i_step = 1,n_steps
   call pbe_freezing(dt)
 
   ! Integrate
-  call pbe_integ(dt)
+  call pbe_integ(dt, stop_flag)
+
+  if (stop_flag) then
+    write(*,*) "Stopping at t = ",current_time
+    stop
+  end if
 
 
   ! Write outputs
