@@ -16,6 +16,7 @@ PBE INPUT DATA
 4.E-21                          ! Maximum size in grid (m3) -> grid_rb
 1.                              ! Volume of nuclei -> v0 (obsolete)
 1                               ! Integration method -> solver_pbe
+0.02                            ! f_dry tolerance
 
 
 Aggregation kernels:

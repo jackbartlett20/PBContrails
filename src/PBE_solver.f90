@@ -69,10 +69,10 @@ do index=1,m
   else if (f_dry(index)<0.D0) then
     write(*,*) "Found f_dry = ",f_dry(index)," at index ",index
     stop_flag = .true.
-  else if ((f_dry(index)>1.D0).and.(f_dry(index)<1.01D0)) then
+  else if ((f_dry(index)>1.D0).and.(f_dry(index)<1.D0+f_dry_tolerance)) then
   !  write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Continuing."
     f_dry(index) = 1.D0
-  else if (f_dry(index)>1.01D0) then
+  else if (f_dry(index)>1.D0+f_dry_tolerance) then
     write(*,*) "Found f_dry = ",f_dry(index)," at index ",index
     stop_flag = .true.
   end if

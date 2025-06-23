@@ -48,6 +48,7 @@ double precision, allocatable, dimension(:) :: f_dry
 double precision v0,grid_lb,grid_rb
 double precision agg_kernel_const
 double precision break_const
+double precision f_dry_tolerance
 
 integer m,grid_type
 integer i_gm
@@ -231,6 +232,7 @@ read(30,*) grid_lb
 read(30,*) grid_rb
 read(30,*) v0
 read(30,*) solver_pbe
+read(30,*) f_dry_tolerance
 close(30)
 
 
