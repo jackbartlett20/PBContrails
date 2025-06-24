@@ -37,15 +37,18 @@ double precision :: nr                !< Number density in right cell
 double precision :: nrr               !< Number density in right-right cell
 double precision :: eps               !< Tolerance for upwind ratio (avoids div by zero)
 double precision :: rl,rr             !< r+ at left and right surface
+double precision :: r                 !< Radius at boundary
 
 parameter(eps = 1.D1*epsilon(1.D0))
 
 !**********************************************************************************************
 
 ! Growth rate at right boundary calculation
-call calc_growth_rate_liquid(index, .true., g_termr)
+r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
+call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
 ! Growth rate at left boundary calculation
-call calc_growth_rate_liquid(index-1, .true., g_terml)
+r = ((3.D0*v(index-1))/(4.D0*pi))**(1.D0/3.D0)
+call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_terml)
 
 
 ! Courant-Friedrichs-Lewy (CFL) condition (C <= 1 for PBE)
@@ -62,9 +65,10 @@ end if
 !                population balances in crystallization
 !----------------------------------------------------------------------------------------------
 
-if (g_termr>0.D0) then
 
+if ((g_terml>0.D0).and.(g_termr>0.D0)) then
   ! growth rate is along positive direction
+
   if (index==1) then
 
     gnl = 0.0D0
@@ -100,9 +104,9 @@ if (g_termr>0.D0) then
     end if
   end if
 
-else
-
+else if ((g_terml<0.D0).and.(g_termr<0.D0)) then
   ! growth rate is along negative direction
+
   if (index==1) then
 
     gnl = g_terml * (ni(1) + 0.5 * (ni(1) - ni(2)))
@@ -139,19 +143,22 @@ else
 
   end if
 
+else if ((g_terml>0.D0).and.(g_termr<0.D0)) then
+  write(*,*) "Inwards growth at index ",index
+  write(*,*) "g_terml = ",g_terml
+  write(*,*) "g_termr = ",g_termr
+  stop
+
+else if ((g_terml<0.D0).and.(g_termr>0.D0)) then
+  write(*,*) "Outwards growth at index ",index
+  write(*,*) "g_terml = ",g_terml
+  write(*,*) "g_termr = ",g_termr
+  stop
+
 end if
 
 ! Calculate growth source
-if (i_gm==1) then
-  ! For mass-conservative growth scheme, apply it after the first interval
-  if (index>1) then
-    growth_source = (v(index-1)*gnl - v(index)*gnr) / (0.5*(v(index)**2-v(index-1)**2))
-  else
-    growth_source = (gnl - gnr) / dv(index)
-  end if
-else
-  growth_source = (gnl - gnr) / dv(index)
-end if
+growth_source = (gnl - gnr) / dv(index)
 
 end subroutine growth_tvd
 
@@ -191,6 +198,7 @@ double precision :: nr                !< Quantity density in right cell
 double precision :: nrr               !< Quantity density in right-right cell
 double precision :: eps               !< Tolerance for upwind ratio (avoids div by zero)
 double precision :: rl,rr             !< r+ at left and right surface
+double precision :: r                 !< Radius at boundary
 double precision :: rho_after_a,rho_after_b !< Temporary variables for holding density
 
 parameter(eps = 1.D1*epsilon(1.D0))
@@ -198,9 +206,11 @@ parameter(eps = 1.D1*epsilon(1.D0))
 !**********************************************************************************************
 
 ! Growth rate at right boundary calculation
-call calc_growth_rate_liquid(index, .true., g_termr)
+r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
+call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
 ! Growth rate at left boundary calculation
-call calc_growth_rate_liquid(index-1, .true., g_terml)
+r = ((3.D0*v(index-1))/(4.D0*pi))**(1.D0/3.D0)
+call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_terml)
 
 ! Courant-Friedrichs-Lewy (CFL) condition (C <= 1 for PBE)
 courant = g_termr * dt / dv(index)
@@ -306,16 +316,7 @@ else
 end if
 
 ! Calculate growth source
-if (i_gm==1) then
-  ! For mass-conservative growth scheme, apply it after the first interval
-  if (index>1) then
-    growth_source = (v(index-1)*gnl - v(index)*gnr) / (0.5*(v(index)**2-v(index-1)**2))
-  else
-    growth_source = (gnl - gnr) / dv(index)
-  end if
-else
-  growth_source = (gnl - gnr) / dv(index)
-end if
+growth_source = (gnl - gnr) / dv(index)
 
 end subroutine growth_tvd_rho
 
@@ -386,6 +387,7 @@ double precision :: nr                !< Quantity density in right cell
 double precision :: nrr               !< Quantity density in right-right cell
 double precision :: eps               !< Tolerance for upwind ratio (avoids div by zero)
 double precision :: rl,rr             !< r+ at left and right surface
+double precision :: r                 !< Radius at boundary
 double precision :: f_dry_after_a,f_dry_after_b !< Temporary variables for holding f_dry
 
 parameter(eps = 1.D1*epsilon(1.D0))
@@ -393,9 +395,11 @@ parameter(eps = 1.D1*epsilon(1.D0))
 !**********************************************************************************************
 
 ! Growth rate at right boundary calculation
-call calc_growth_rate_liquid(index, .true., g_termr)
+r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
+call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
 ! Growth rate at left boundary calculation
-call calc_growth_rate_liquid(index-1, .true., g_terml)
+r = ((3.D0*v(index-1))/(4.D0*pi))**(1.D0/3.D0)
+call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_terml)
 
 ! Courant-Friedrichs-Lewy (CFL) condition (C <= 1 for PBE)
 courant = g_termr * dt / dv(index)
@@ -501,16 +505,7 @@ else
 end if
 
 ! Calculate growth source
-if (i_gm==1) then
-  ! For mass-conservative growth scheme, apply it after the first interval
-  if (index>1) then
-    growth_source = (v(index-1)*gnl - v(index)*gnr) / (0.5*(v(index)**2-v(index-1)**2))
-  else
-    growth_source = (gnl - gnr) / dv(index)
-  end if
-else
-  growth_source = (gnl - gnr) / dv(index)
-end if
+growth_source = (gnl - gnr) / dv(index)
 
 end subroutine growth_tvd_f_dry
 
@@ -551,11 +546,11 @@ end subroutine f_dry_growth
 
 !**********************************************************************************************
 
-subroutine calc_growth_rate_liquid(index, boundary, g_term)
+subroutine calc_growth_rate_liquid(r, kappa_i, rho_i, f_dry_i, g_term)
 
 !**********************************************************************************************
 !
-! Calculates droplet growth rate at indexed boundary
+! Calculates droplet growth rate with given parameters
 !
 ! By Jack Bartlett (10/06/2025)
 !
@@ -565,12 +560,13 @@ use pbe_mod
 
 implicit none
 
-integer, intent(in)                        :: index
-logical, intent(in)                        :: boundary
+double precision, intent(in)               :: r
+double precision, intent(in)               :: kappa_i
+double precision, intent(in)               :: rho_i
+double precision, intent(in)               :: f_dry_i
 double precision, intent(out)              :: g_term
 
 double precision surf_tens, accom_coeff
-double precision r, f_dry_i, kappa_i, rho_i
 double precision raoult_term, kelvin_term, S_droplet
 double precision diffusivity_mod, k_air_mod
 double precision F_d, F_k
@@ -579,32 +575,6 @@ double precision F_d, F_k
 
 surf_tens = 72.8D-3 ! Update!
 accom_coeff = 1.D0
-
-if (boundary) then
-  ! Find properties of interval boundary
-  r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
-
-  if (index==0) then
-    f_dry_i = f_dry(1)
-    kappa_i = kappa(1)
-    rho_i = rho(1)
-  else if (index==m) then
-    f_dry_i = f_dry(m)
-    kappa_i = kappa(m)
-    rho_i = rho(m)
-  else
-    f_dry_i = 0.5D0 * (f_dry(index) + f_dry(index+1))
-    kappa_i = 0.5D0 * (kappa(index) + kappa(index+1))
-    rho_i = 0.5D0 * (rho(index) + rho(index+1))
-  end if
-
-else
-  ! Find properties of interval midpoint
-  r = d_m(index)/2
-  f_dry_i = f_dry(index)
-  kappa_i = kappa(index)
-  rho_i = rho(index)
-end if
 
 if (kappa_i.eq.0.D0) then
   raoult_term = 1.D0

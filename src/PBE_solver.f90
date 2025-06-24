@@ -82,7 +82,7 @@ end do
 ! Change Pvap due to growth
 sum_gn = 0.D0
 do index=1,m
-  call calc_growth_rate_liquid(index, .false., g_term)
+  call calc_growth_rate_liquid(d_m(index)/2.D0, kappa(index), rho(index), f_dry(index), g_term)
   sum_gn = sum_gn + g_term*ni_droplet(index)*dv(index)
 end do
 Pvap = Pvap + (boltzmann_constant * temperature * (sum_gn / water_molecular_vol)) * dt
@@ -363,7 +363,6 @@ double precision, dimension(m), intent(in)  :: ni_droplet_prime
 double precision, dimension(m), intent(out) :: kappa_prime
 double precision, intent(in) :: dt
 
-double precision nkappa(m) ! total quantity of kappa
 double precision growth_source,growth_mass_source
 
 integer index
@@ -372,12 +371,9 @@ integer index
 
 kappa_prime= 0.
 
-nkappa = kappa_temp * ni_droplet
-
-
 ! Particle growth
 do index=1,m
-  call growth_tvd(nkappa, index, dt, growth_source)
+  call growth_tvd(kappa_temp*ni_droplet, index, dt, growth_source)
   kappa_prime(index) = kappa_prime(index) + growth_source
 end do
 
@@ -386,12 +382,12 @@ if (agg_kernel>0) then
   ! CFV formulation of Liu and Rigopoulos (2019)
   ! Note 1: current value of niprime is augmented within pbe_agg_cfv
   ! Note 2: contracting grid is not implemented
-  call pbe_agg_cfv(dv,v_m,nkappa,kappa_prime)
+  !call pbe_agg_cfv(dv,v_m,nkappa,kappa_prime)
 end if
 
 !Fragmentation
 if (break_const>0.) then
-  call pbe_breakage_cfv(kappa_prime,nkappa)
+  !call pbe_breakage_cfv(kappa_prime,nkappa)
 end if
 
 ! Change in ni_droplet
