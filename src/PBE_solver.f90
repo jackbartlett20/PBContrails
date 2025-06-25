@@ -56,6 +56,7 @@ else if (solver_pbe == 3) then
 
 end if
 
+! Check properties are all valid
 do index=1,m
   if (kappa(index)<0.D0) then
     write(*,*) "Found kappa = ",kappa(index)," at index ",index
@@ -72,7 +73,7 @@ do index=1,m
   else if ((f_dry(index)>1.D0).and.(f_dry(index)<1.D0+f_dry_tolerance)) then
   !  write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Continuing."
     f_dry(index) = 1.D0
-  else if (f_dry(index)>1.D0+f_dry_tolerance) then
+  else if (f_dry(index)>1.D0) then
     write(*,*) "Found f_dry = ",f_dry(index)," at index ",index
     stop_flag = .true.
   end if
@@ -140,8 +141,8 @@ call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime,dt)
 
 ni_droplet = ni_droplet + ni_droplet_prime * dt
 kappa = kappa + kappa_prime * dt
-!rho = rho + rho_prime * dt
-!f_dry = f_dry + f_dry_prime * dt
+rho = rho + rho_prime * dt
+f_dry = f_dry + f_dry_prime * dt
 
 
 end subroutine pbe_integ_euler
@@ -156,7 +157,7 @@ subroutine pbe_integ_RK2(dt)
 
 !**********************************************************************************************
 !
-! !Runge-Kutta 2nd order temporal integration
+! Runge-Kutta 2nd order temporal integration
 !
 ! Jack Bartlett (18/06/2025)
 !
@@ -208,7 +209,7 @@ subroutine pbe_integ_RK4(dt)
 
 !**********************************************************************************************
 !
-! !Runge-Kutta 4th order temporal integration
+! Runge-Kutta 4th order temporal integration
 !
 ! Jack Bartlett (18/06/2025)
 !
@@ -363,6 +364,7 @@ double precision, dimension(m), intent(in)  :: ni_droplet_prime
 double precision, dimension(m), intent(out) :: kappa_prime
 double precision, intent(in) :: dt
 
+double precision nkappa(m) ! total quantity of kappa
 double precision growth_source,growth_mass_source
 
 integer index
@@ -371,9 +373,11 @@ integer index
 
 kappa_prime= 0.
 
+nkappa = kappa_temp*ni_droplet
+
 ! Particle growth
 do index=1,m
-  call growth_tvd(kappa_temp*ni_droplet, index, dt, growth_source)
+  call growth_tvd(nkappa, index, dt, growth_source)
   kappa_prime(index) = kappa_prime(index) + growth_source
 end do
 
@@ -395,6 +399,13 @@ kappa_prime = kappa_prime - kappa * ni_droplet_prime
 
 ! Scaling
 kappa_prime = kappa_prime/ni_droplet
+
+! Perturbation suppression
+do index=1,m
+  if (abs(kappa_prime(index))*dt < pert_supp * kappa(index)) then
+    kappa_prime(index) = 0.D0
+  end if
+end do
 
 end subroutine pbe_ydot_kappa
 
@@ -441,12 +452,6 @@ do index=1,m
   rho_prime(index) = rho_prime(index) + growth_source
 end do
 
-! Condensation
-!do index=1,m
-!  call calc_growth_rate_liquid(index, .false., g_term)
-!  rho_prime(index) = rho_prime(index) + ni_droplet(index) * (water_density - rho(index)) * g_term / v_m(index)
-!end do
-
 !Aggregation - make include correct birth/death rates of rho
 
 !Fragmentation
@@ -456,6 +461,13 @@ rho_prime = rho_prime - rho * ni_droplet_prime
 
 ! Scaling
 rho_prime = rho_prime/ni_droplet
+
+! Perturbation suppression
+do index=1,m
+  if (abs(rho_prime(index))*dt < pert_supp * rho(index)) then
+    rho_prime(index) = 0.D0
+  end if
+end do
 
 end subroutine pbe_ydot_rho
 
@@ -502,12 +514,6 @@ do index=1,m
   f_dry_prime(index) = f_dry_prime(index) + growth_source
 end do
 
-! Condensation
-!do index=1,m
-!  call calc_growth_rate_liquid(index, .false., g_term)
-!  f_dry_prime(index) = f_dry_prime(index) - ni_droplet(index) * f_dry(index) * g_term / v_m(index)
-!end do
-
 !Aggregation - make include correct birth/death rates of f_dry
 
 !Fragmentation
@@ -517,6 +523,13 @@ f_dry_prime = f_dry_prime - f_dry * ni_droplet_prime
 
 ! Scaling
 f_dry_prime = f_dry_prime/ni_droplet
+
+! Perturbation suppression
+do index=1,m
+  if (abs(f_dry_prime(index))*dt < pert_supp * f_dry(index)) then
+    f_dry_prime(index) = 0.D0
+  end if
+end do
 
 end subroutine pbe_ydot_f_dry
 

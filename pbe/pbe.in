@@ -16,7 +16,8 @@ PBE INPUT DATA
 4.E-21                          ! Maximum size in grid (m3) -> grid_rb
 1.                              ! Volume of nuclei -> v0 (obsolete)
 1                               ! Integration method -> solver_pbe
-0.02                            ! f_dry tolerance
+1.E-3                            ! Allowable rise in dry fraction above 1 -> f_dry_tolerance
+1.E-9                           ! Perturbation suppression -> pert_supp
 
 
 Aggregation kernels:
@@ -35,3 +36,8 @@ Uniform binary is currently implemented, for other models edit breakage_fcn
 Grid types:
 1. Geometric
 2. Uniform
+
+Perturbation suppression:
+For changes in properties (hygroscopicity, density, and dry fraction), if the
+change in the property is less than this number multiplied by the current value
+of the property, the change in the property is neglected.

@@ -28,7 +28,6 @@ double precision, intent(in)               :: dt ! only for Courant number check
 double precision, intent(out)              :: growth_source
 
 double precision :: g_terml,g_termr,phi
-double precision :: courant
 double precision :: gnl,gnr           !< (G*N) at left surface and right surface
 double precision :: nl                !< Number density in left cell
 double precision :: nll               !< Number density in left-left cell
@@ -50,15 +49,7 @@ call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
 r = ((3.D0*v(index-1))/(4.D0*pi))**(1.D0/3.D0)
 call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_terml)
 
-
-! Courant-Friedrichs-Lewy (CFL) condition (C <= 1 for PBE)
-courant = g_termr * dt / dv(index)
-if (courant>1) then
-  write(*,*) "Courant number of ",courant," detected at index ",index,"."
-  write(*,*) "Courant number should be <= 1 for growth function to work."
-  write(*,*) "Adjust dt proportionately."
-  stop
-end if
+call courant_check(g_termr, dt, index)
 
 !----------------------------------------------------------------------------------------------
 !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
@@ -189,7 +180,6 @@ double precision, intent(in)               :: dt ! only for Courant number check
 double precision, intent(out)              :: growth_source
 
 double precision :: g_terml,g_termr,phi
-double precision :: courant
 double precision :: gnl,gnr           !< (G*N) at left surface and right surface
 double precision :: nl                !< Quantity density in left cell
 double precision :: nll               !< Quantity density in left-left cell
@@ -212,14 +202,7 @@ call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
 r = ((3.D0*v(index-1))/(4.D0*pi))**(1.D0/3.D0)
 call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_terml)
 
-! Courant-Friedrichs-Lewy (CFL) condition (C <= 1 for PBE)
-courant = g_termr * dt / dv(index)
-if (courant>1) then
-  write(*,*) "Courant number of ",courant," detected at index ",index,"."
-  write(*,*) "Courant number should be <= 1 for growth function to work."
-  write(*,*) "Adjust dt proportionately."
-  stop
-end if
+call courant_check(g_termr, dt, index)
 
 !----------------------------------------------------------------------------------------------
 !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
@@ -378,7 +361,6 @@ double precision, intent(in)               :: dt ! only for Courant number check
 double precision, intent(out)              :: growth_source
 
 double precision :: g_terml,g_termr,phi
-double precision :: courant
 double precision :: gnl,gnr           !< (G*N) at left surface and right surface
 double precision :: nl                !< Quantity density in left cell
 double precision :: nll               !< Quantity density in left-left cell
@@ -401,14 +383,7 @@ call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
 r = ((3.D0*v(index-1))/(4.D0*pi))**(1.D0/3.D0)
 call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_terml)
 
-! Courant-Friedrichs-Lewy (CFL) condition (C <= 1 for PBE)
-courant = g_termr * dt / dv(index)
-if (courant>1) then
-  write(*,*) "Courant number of ",courant," detected at index ",index,"."
-  write(*,*) "Courant number should be <= 1 for growth function to work."
-  write(*,*) "Adjust dt proportionately."
-  stop
-end if
+call courant_check(g_termr, dt, index)
 
 !----------------------------------------------------------------------------------------------
 !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
@@ -673,5 +648,43 @@ correction_factor = 1 + accom_coeff * vapour_thermal_speed * r / (4.D0 * diffusi
 J = (pi * r**2 * accom_coeff * vapour_thermal_speed * supersaturation * n_sat) / correction_factor
 
 end subroutine calc_J
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine courant_check(g_term, dt, index)
+
+!**********************************************************************************************
+!
+! Checks if the Courant-Friedrichs-Lewy (CFL) condition condition (C <= 1 for PBE) holds.
+!
+! By Jack Bartlett (24/06/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in) :: g_term
+double precision, intent(in) :: dt
+integer, intent(in) :: index
+
+double precision courant
+
+!----------------------------------------------------------------------------------------------
+
+courant = g_term * dt / dv(index)
+if (courant>1.D0) then
+  write(*,*) "Courant number of ",courant," detected at index ",index,"."
+  write(*,*) "Courant number should be <= 1 for growth function to work."
+  write(*,*) "Reduce dt proportionately."
+  stop
+end if
+
+end subroutine courant_check
 
 !**********************************************************************************************

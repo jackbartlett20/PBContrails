@@ -49,6 +49,7 @@ double precision v0,grid_lb,grid_rb
 double precision agg_kernel_const
 double precision break_const
 double precision f_dry_tolerance
+double precision pert_supp
 
 integer m,grid_type
 integer i_gm
@@ -233,6 +234,7 @@ read(30,*) grid_rb
 read(30,*) v0
 read(30,*) solver_pbe
 read(30,*) f_dry_tolerance
+read(30,*) pert_supp
 close(30)
 
 
@@ -349,11 +351,7 @@ do
     write(*,*) "Density of ",rho_i," found in input."
     write(*,*) "Density must be more than 0. Stopping."
     stop
-  else if (f_dry_i < 0.D0) then
-    write(*,*) "Dry volume fraction of ",f_dry_i," found in input."
-    write(*,*) "Dry volume fraction must be between 0 and 1. Stopping."
-    stop
-  else if (f_dry_i > 1.D0) then
+  else if ((f_dry_i < 0.D0).or.(f_dry_i > 1.D0)) then
     write(*,*) "Dry volume fraction of ",f_dry_i," found in input."
     write(*,*) "Dry volume fraction must be between 0 and 1. Stopping."
     stop

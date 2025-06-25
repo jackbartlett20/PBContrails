@@ -13,5 +13,5 @@ Total number density (m-3): total number density of species
 Mean radius (m): mean radius of species; input e.g. 1 nm as 1.E-9
 SD: standard deviation of particle radius in log-space; no units
 Hygroscopicity: hygroscopicity parameter; 1 for very hygroscopic, 0 for unhygroscopic
-Mass density (kgm-3): mass density of particle
+Mass density (kgm-3): mass density of particles
 Dry volume fraction: fraction of particle volume that is not water
