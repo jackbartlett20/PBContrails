@@ -68,6 +68,8 @@ do i_step = 1,n_steps
     call PBE_agg_beta(2)
   end if
 
+  ! Update volume of water in droplets
+
   ! Update freezing
   ! Currently assumes whole volume is water
   call pbe_freezing(dt)
@@ -79,7 +81,6 @@ do i_step = 1,n_steps
     write(*,*) "Stopping at t = ",current_time
     stop
   end if
-
 
   ! Write outputs
   if ((i_write==n_write).or.(i_step==n_steps)) then

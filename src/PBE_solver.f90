@@ -56,25 +56,27 @@ else if (solver_pbe == 3) then
 
 end if
 
+write(*,*) "Total change in f_dry(1): ",f_dry(1)-1.D0
+
 ! Check properties are all valid
 do index=1,m
   if (kappa(index)<0.D0) then
-    write(*,*) "Found kappa = ",kappa(index)," at index ",index
+    write(*,*) "ERROR: Found kappa = ",kappa(index)," at index ",index
     stop_flag = .true.
   else if (kappa(index)>1.D0) then
-    write(*,*) "Found kappa = ",kappa(index)," at index ",index
+    write(*,*) "ERROR: Found kappa = ",kappa(index)," at index ",index
     stop_flag = .true.
   else if (rho(index)<0.D0) then
-    write(*,*) "Found rho = ",rho(index)," at index ",index
+    write(*,*) "ERROR: Found rho = ",rho(index)," at index ",index
     stop_flag = .true.
   else if (f_dry(index)<0.D0) then
-    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index
+    write(*,*) "ERROR: Found f_dry = ",f_dry(index)," at index ",index
     stop_flag = .true.
   else if ((f_dry(index)>1.D0).and.(f_dry(index)<1.D0+f_dry_tolerance)) then
-  !  write(*,*) "Found f_dry = ",f_dry(index)," at index ",index,". Continuing."
+  !  write(*,*) "WARNING: Found f_dry = ",f_dry(index)," at index ",index,". Continuing."
     f_dry(index) = 1.D0
-  else if (f_dry(index)>1.D0) then
-    write(*,*) "Found f_dry = ",f_dry(index)," at index ",index
+  else if (f_dry(index)>1.D0+f_dry_tolerance) then
+    write(*,*) "ERROR: Found f_dry = ",f_dry(index)," at index ",index
     stop_flag = .true.
   end if
 end do
@@ -514,12 +516,16 @@ do index=1,m
   f_dry_prime(index) = f_dry_prime(index) + growth_source
 end do
 
+write(*,*) "Delta f_dry(1) after growth: ",f_dry_prime(1)*dt/ni_droplet(1)
+
 !Aggregation - make include correct birth/death rates of f_dry
 
 !Fragmentation
 
 ! Change in ni_droplet
 f_dry_prime = f_dry_prime - f_dry * ni_droplet_prime
+
+write(*,*) "Delta f_dry(1) after change in ni_droplet: ",f_dry_prime(1)*dt/ni_droplet(1)
 
 ! Scaling
 f_dry_prime = f_dry_prime/ni_droplet

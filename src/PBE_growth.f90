@@ -15,6 +15,7 @@ subroutine growth_tvd(ni, index, dt, growth_source)
 ! Growth for finite volume method
 !
 ! Stelios Rigopoulos, Fabian Sewerin, Binxuan Sun
+! Modified by Jack Bartlett
 !
 !**********************************************************************************************
 
@@ -56,33 +57,16 @@ call courant_check(g_termr, dt, index)
 !                population balances in crystallization
 !----------------------------------------------------------------------------------------------
 
-
-if ((g_terml>0.D0).and.(g_termr>0.D0)) then
-  ! growth rate is along positive direction
-
+if (g_terml>0.D0) then
+  ! growth rate at left boundary is in positive direction
+  
   if (index==1) then
-
     gnl = 0.0D0
-    gnr = g_termr * 0.5 * (ni(1)+ni(2))
-
   else if (index==m) then
-
     rl = (ni(m) - ni(m-1) + eps) / (ni(m-1) - ni(m-2) + eps)
     phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
     gnl = g_terml * (ni(m-1) + 0.5 * phi * (ni(m-1) - ni(m-2)))
-    gnr = g_termr * (ni(m) + 0.5*(ni(m) - ni(m-1)))
-
   else
-
-    ! Fluxes at cell right surface
-    nl = ni(index-1)
-    nc = ni(index)
-    nr = ni(index+1)
-    rr = (nr - nc + eps) / (nc - nl + eps)
-    phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
-    gnr = g_termr * (nc + 0.5 * phi * (nc - nl))
-
-    ! Fluxes at cell left surface
     if (index==2 ) then
       gnl = g_terml * 0.5 * (ni(1)+ni(2))
     else
@@ -95,24 +79,49 @@ if ((g_terml>0.D0).and.(g_termr>0.D0)) then
     end if
   end if
 
-else if ((g_terml<0.D0).and.(g_termr<0.D0)) then
-  ! growth rate is along negative direction
+else
+  ! growth rate at left boundary is in negative direction
+  
+  if (index==1) then
+    gnl = g_terml * (ni(1) + 0.5 * (ni(1) - ni(2)))
+  else if (index==m) then
+    gnl = g_terml * 0.5 * (ni(m)+ni(m-1))
+  else
+    nl = ni(index-1)
+    nc = ni(index)
+    nr = ni(index+1)
+    rl = (nl - nc + eps) / (nc - nr + eps)
+    phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+    gnl = g_terml * (nc + 0.5 * phi * (nc - nr))
+  end if
+end if
+
+if (g_termr>0.D0) then
+  ! growth rate at right boundary is in positive direction
 
   if (index==1) then
+    gnr = g_termr * 0.5 * (ni(1)+ni(2))
+  else if (index==m) then
+    gnr = g_termr * (ni(m) + 0.5*(ni(m) - ni(m-1)))
+  else
+    nl = ni(index-1)
+    nc = ni(index)
+    nr = ni(index+1)
+    rr = (nr - nc + eps) / (nc - nl + eps)
+    phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
+    gnr = g_termr * (nc + 0.5 * phi * (nc - nl))
+  end if
 
-    gnl = g_terml * (ni(1) + 0.5 * (ni(1) - ni(2)))
+else
+  ! growth rate at right boundary is in negative direction
+
+  if (index==1) then
     rr = (ni(1) - ni(2) + eps) / (ni(2) - ni(3) + eps)
     phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
     gnr = g_termr * (ni(2) + 0.5 * phi * (ni(2) - ni(3)))
-
   else if (index==m) then
-
-    gnr = 0
-    gnl = g_terml * 0.5 * (ni(m)+ni(m-1))
-
+    gnr = 0.D0
   else
-
-    ! Fluxes at cell right surface
     if (index==m-1) then
       gnr = g_termr * 0.5 * (ni(m)+ni(m-1))
     else
@@ -123,29 +132,7 @@ else if ((g_terml<0.D0).and.(g_termr<0.D0)) then
       phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
       gnr = g_termr * (nc + 0.5 * phi * (nc - nr))
     end if
-
-    ! Fluxes at cell left surface
-    nl = ni(index-1)
-    nc = ni(index)
-    nr = ni(index+1)
-    rl = (nl - nc + eps) / (nc - nr + eps)
-    phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
-    gnl = g_terml * (nc + 0.5 * phi * (nc - nr))
-
   end if
-
-else if ((g_terml>0.D0).and.(g_termr<0.D0)) then
-  write(*,*) "Inwards growth at index ",index
-  write(*,*) "g_terml = ",g_terml
-  write(*,*) "g_termr = ",g_termr
-  stop
-
-else if ((g_terml<0.D0).and.(g_termr>0.D0)) then
-  write(*,*) "Outwards growth at index ",index
-  write(*,*) "g_terml = ",g_terml
-  write(*,*) "g_termr = ",g_termr
-  stop
-
 end if
 
 ! Calculate growth source
@@ -209,9 +196,9 @@ call courant_check(g_termr, dt, index)
 !                population balances in crystallization
 !----------------------------------------------------------------------------------------------
 
-if (g_termr>0.D0) then
-
+if ((g_terml>0.D0).and.(g_termr>0.D0)) then
   ! growth rate is along positive direction
+
   if (index==1) then
 
     gnl = 0.0D0
@@ -252,9 +239,9 @@ if (g_termr>0.D0) then
     end if
   end if
 
-else
-
+else if ((g_terml<0.D0).and.(g_termr<0.D0)) then
   ! growth rate is along negative direction
+
   if (index==1) then
 
     gnl = g_terml * (ni(1)*rho_temp(1) + 0.5 * (ni(1)*rho_temp(1) - ni(2)*rho_temp(2)))
@@ -266,7 +253,7 @@ else
 
   else if (index==m) then
 
-    gnr = 0
+    gnr = 0.D0
     gnl = g_terml * 0.5 * (ni(m)*rho_temp(m) + ni(m-1)*rho_temp(m-1))
 
   else
@@ -285,6 +272,93 @@ else
       call rho_growth(index+2, index, rho_temp(index+2), rho_after_b)
       gnr = g_termr * (nc*rho_after_a + 0.5 * phi * (nc*rho_after_a - nr*rho_after_b))
     end if
+
+    ! Fluxes at cell left surface
+    nl = ni(index-1)
+    nc = ni(index)
+    nr = ni(index+1)
+    rl = (nl - nc + eps) / (nc - nr + eps)
+    phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+    gnl = g_terml * (nc*rho_temp(index) + 0.5 * phi * (nc*rho_temp(index) - nr*rho_temp(index+1)))
+
+  end if
+
+else if ((g_terml>0.D0).and.(g_termr<0.D0)) then
+  ! growth rate is inwards
+
+  if (index==1) then
+
+    gnl = 0.0D0
+    rr = (ni(1) - ni(2) + eps) / (ni(2) - ni(3) + eps)
+    phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
+    call rho_growth(2, 1, rho_temp(2), rho_after_a)
+    call rho_growth(3, 1, rho_temp(3), rho_after_b)
+    gnr = g_termr * (ni(2)*rho_after_a + 0.5 * phi * (ni(2)*rho_after_a - ni(3)*rho_after_b))
+
+  else if (index==m) then
+
+    rl = (ni(m) - ni(m-1) + eps) / (ni(m-1) - ni(m-2) + eps)
+    phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+    call rho_growth(m-1, m, rho_temp(m-1), rho_after_a)
+    call rho_growth(m-2, m, rho_temp(m-2), rho_after_b)
+    gnl = g_terml * (ni(m-1)*rho_after_a + 0.5 * phi * (ni(m-1)*rho_after_a - ni(m-2)*rho_after_b))
+    gnr = 0.D0
+
+  else
+
+    ! Fluxes at cell right surface
+    if (index==m-1) then
+      call rho_growth(m, m-1, rho_temp(m), rho_after_a)
+      gnr = g_termr * 0.5 * (ni(m)*rho_after_a + ni(m-1)*rho_temp(m-1))
+    else
+      nl = ni(index)
+      nc = ni(index+1)
+      nr = ni(index+2)
+      rr = (nl - nc + eps) / (nc - nr + eps)
+      phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
+      call rho_growth(index+1, index, rho_temp(index+1), rho_after_a)
+      call rho_growth(index+2, index, rho_temp(index+2), rho_after_b)
+      gnr = g_termr * (nc*rho_after_a + 0.5 * phi * (nc*rho_after_a - nr*rho_after_b))
+    end if
+
+    ! Fluxes at cell left surface
+    if (index==2 ) then
+      call rho_growth(1, 2, rho_temp(1), rho_after_a)
+      gnl = g_terml * 0.5 * (ni(1)*rho_after_a + ni(2)*rho_temp(2))
+    else
+      nl = ni(index-2)
+      nc = ni(index-1)
+      nr = ni(index)
+      rl = (nr - nc + eps) / (nc - nl + eps)
+      phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+      call rho_growth(index-1, index, rho_temp(index-1), rho_after_a)
+      call rho_growth(index-2, index, rho_temp(index-2), rho_after_b)
+      gnl = g_terml * (nc*rho_after_a + 0.5 * phi * (nc*rho_after_a - nl*rho_after_b))
+    end if
+  end if
+
+else if ((g_terml<0.D0).and.(g_termr>0.D0)) then
+  ! growth rate is outwards
+
+  if (index==1) then
+
+    gnl = g_terml * (ni(1)*rho_temp(1) + 0.5 * (ni(1)*rho_temp(1) - ni(2)*rho_temp(2)))
+    gnr = g_termr * 0.5 * (ni(1)*rho_temp(1) + ni(2)*rho_temp(2))
+
+  else if (index==m) then
+
+    gnr = g_termr * (ni(m)*rho_temp(m) + 0.5*(ni(m)*rho_temp(m) - ni(m-1)*rho_temp(m-1)))
+    gnl = g_terml * 0.5 * (ni(m)*rho_temp(m) + ni(m-1)*rho_temp(m-1))
+
+  else
+
+    ! Fluxes at cell right surface
+    nl = ni(index-1)
+    nc = ni(index)
+    nr = ni(index+1)
+    rr = (nr - nc + eps) / (nc - nl + eps)
+    phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
+    gnr = g_termr * (nc*rho_temp(index) + 0.5 * phi * (nc*rho_temp(index) - nl*rho_temp(index-1)))
 
     ! Fluxes at cell left surface
     nl = ni(index-1)
@@ -390,9 +464,9 @@ call courant_check(g_termr, dt, index)
 !                population balances in crystallization
 !----------------------------------------------------------------------------------------------
 
-if (g_termr>0.D0) then
-
+if ((g_terml>0.D0).and.(g_termr>0.D0)) then
   ! growth rate is along positive direction
+
   if (index==1) then
 
     gnl = 0.0D0
@@ -433,9 +507,9 @@ if (g_termr>0.D0) then
     end if
   end if
 
-else
-
+else if ((g_terml<0.D0).and.(g_termr<0.D0)) then
   ! growth rate is along negative direction
+
   if (index==1) then
 
     gnl = g_terml * (ni(1)*f_dry_temp(1) + 0.5 * (ni(1)*f_dry_temp(1) - ni(2)*f_dry_temp(2)))
@@ -447,7 +521,7 @@ else
 
   else if (index==m) then
 
-    gnr = 0
+    gnr = 0.D0
     gnl = g_terml * 0.5 * (ni(m)*f_dry_temp(m) + ni(m-1)*f_dry_temp(m-1))
 
   else
@@ -466,6 +540,93 @@ else
       call f_dry_growth(index+2, index, f_dry_temp(index+2), f_dry_after_b)
       gnr = g_termr * (nc*f_dry_after_a + 0.5 * phi * (nc*f_dry_after_a - nr*f_dry_after_b))
     end if
+
+    ! Fluxes at cell left surface
+    nl = ni(index-1)
+    nc = ni(index)
+    nr = ni(index+1)
+    rl = (nl - nc + eps) / (nc - nr + eps)
+    phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+    gnl = g_terml * (nc*f_dry_temp(index) + 0.5 * phi * (nc*f_dry_temp(index) - nr*f_dry_temp(index+1)))
+
+  end if
+
+else if ((g_terml>0.D0).and.(g_termr<0.D0)) then
+  ! growth rate is inwards
+
+  if (index==1) then
+
+    gnl = 0.0D0
+    rr = (ni(1) - ni(2) + eps) / (ni(2) - ni(3) + eps)
+    phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
+    call f_dry_growth(2, 1, f_dry_temp(2), f_dry_after_a)
+    call f_dry_growth(3, 1, f_dry_temp(3), f_dry_after_b)
+    gnr = g_termr * (ni(2)*f_dry_after_a + 0.5 * phi * (ni(2)*f_dry_after_a - ni(3)*f_dry_after_b))
+
+  else if (index==m) then
+
+    rl = (ni(m) - ni(m-1) + eps) / (ni(m-1) - ni(m-2) + eps)
+    phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+    call f_dry_growth(m-1, m, f_dry_temp(m-1), f_dry_after_a)
+    call f_dry_growth(m-2, m, f_dry_temp(m-2), f_dry_after_b)
+    gnl = g_terml * (ni(m-1)*f_dry_after_a + 0.5 * phi * (ni(m-1)*f_dry_after_a - ni(m-2)*f_dry_after_b))
+    gnr = 0.D0
+
+  else
+
+    ! Fluxes at cell right surface
+    if (index==m-1) then
+      call f_dry_growth(m, m-1, f_dry_temp(m), f_dry_after_a)
+      gnr = g_termr * 0.5 * (ni(m)*f_dry_after_a + ni(m-1)*f_dry_temp(m-1))
+    else
+      nl = ni(index)
+      nc = ni(index+1)
+      nr = ni(index+2)
+      rr = (nl - nc + eps) / (nc - nr + eps)
+      phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
+      call f_dry_growth(index+1, index, f_dry_temp(index+1), f_dry_after_a)
+      call f_dry_growth(index+2, index, f_dry_temp(index+2), f_dry_after_b)
+      gnr = g_termr * (nc*f_dry_after_a + 0.5 * phi * (nc*f_dry_after_a - nr*f_dry_after_b))
+    end if
+
+    ! Fluxes at cell left surface
+    if (index==2 ) then
+      call f_dry_growth(1, 2, f_dry_temp(1), f_dry_after_a)
+      gnl = g_terml * 0.5 * (ni(1)*f_dry_after_a + ni(2)*f_dry_temp(2))
+    else
+      nl = ni(index-2)
+      nc = ni(index-1)
+      nr = ni(index)
+      rl = (nr - nc + eps) / (nc - nl + eps)
+      phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+      call f_dry_growth(index-1, index, f_dry_temp(index-1), f_dry_after_a)
+      call f_dry_growth(index-2, index, f_dry_temp(index-2), f_dry_after_b)
+      gnl = g_terml * (nc*f_dry_after_a + 0.5 * phi * (nc*f_dry_after_a - nl*f_dry_after_b))
+    end if
+  end if
+
+else if ((g_terml<0.D0).and.(g_termr>0.D0)) then
+  ! growth rate is outwards
+
+  if (index==1) then
+
+    gnl = g_terml * (ni(1)*f_dry_temp(1) + 0.5 * (ni(1)*f_dry_temp(1) - ni(2)*f_dry_temp(2)))
+    gnr = g_termr * 0.5 * (ni(1)*f_dry_temp(1) + ni(2)*f_dry_temp(2))
+
+  else if (index==m) then
+
+    gnr = g_termr * (ni(m)*f_dry_temp(m) + 0.5*(ni(m)*f_dry_temp(m) - ni(m-1)*f_dry_temp(m-1)))
+    gnl = g_terml * 0.5 * (ni(m)*f_dry_temp(m) + ni(m-1)*f_dry_temp(m-1))
+
+  else
+
+    ! Fluxes at cell right surface
+    nl = ni(index-1)
+    nc = ni(index)
+    nr = ni(index+1)
+    rr = (nr - nc + eps) / (nc - nl + eps)
+    phi = max(0.0d0, min(2.0d0 * rr, min((1.0d0 + 2.0d0 * rr) / 3.0d0, 2.0d0)))
+    gnr = g_termr * (nc*f_dry_temp(index) + 0.5 * phi * (nc*f_dry_temp(index) - nl*f_dry_temp(index-1)))
 
     ! Fluxes at cell left surface
     nl = ni(index-1)

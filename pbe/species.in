@@ -4,7 +4,8 @@ Total number density (m-3), Mean radius (m), SD, Hygroscopicity, Mass density (k
 ----------------------------------------------------------------------------------------------------------
 8e11, 20.E-9, 1.823E-1, 0.01, 600., 1.
 END
-8e9, 2.E-9, 2.5E-1, 0.5, 1000., 1.
+8e9, 2.E-9, 1.2E-1, 0.5, 1000., 1.
+6e8, 15.E-9, 2E-1, 0.5, 1000., 1.
 
 Values in a line must be separated by commas. Spaces are ignored.
 'END' must follow directly after the final species.
