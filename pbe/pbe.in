@@ -2,6 +2,9 @@ PBE INPUT DATA
 
 0                               ! Aggregation kernel -> agg_kernel
 1.                              ! Aggregation kernel constant -> agg_kernel_const
+0.5                             ! Jet radius at exhaust (m) -> r_0
+400.                            ! Exhaust velocity (m/s) -> u_0
+2.85E-2                         ! Turbulent diffusivity (no units) -> eps_diffusivity
 600.                            ! Exhaust temperature (K) -> T_exhaust
 215.                            ! Ambient temperature (K) -> T_ambient
 2.E4                            ! Air pressure (Pa) -> P_ambient
@@ -11,7 +14,7 @@ PBE INPUT DATA
 0.                              ! Fragmentation rate constant -> break_const
 3                               ! Order of Gaussian quadrature (for fragmentation) -> order_of_gq
 1                               ! Grid type -> grid_type
-100                             ! Number of volume grid points -> m
+200                             ! Number of volume grid points -> m
 4.E-24                          ! Minimum size in grid (m3) (must be >0 for geometric grid) -> grid_lb
 4.E-21                          ! Maximum size in grid (m3) -> grid_rb
 1.                              ! Volume of nuclei -> v0 (obsolete)

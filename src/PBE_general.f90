@@ -71,6 +71,11 @@ double precision diffusivity, k_air
 double precision mfp_air
 double precision l_v
 
+! Plume diffusion constants
+double precision r_0,u_0,eps_diffusivity
+double precision x_m ! unentrained length (m)
+double precision tau_m ! mixing timescale (s)
+
 
 ! Double precision kind
 integer, parameter :: dp = selected_real_kind(15, 307)
@@ -88,14 +93,6 @@ real(kind=dp), parameter :: water_molecular_vol = 2.97D-29 ! (m3)
 real(kind=dp), parameter :: water_molecular_mass = 2.99D-26 ! (kg)
 real(kind=dp), parameter :: water_density = 1.E3 ! (kgm-3)
 real(kind=dp), parameter :: cp_air = 1004 ! (J kg-1 K-1)
-
-
-! Plume diffusion constants
-real(kind=dp), parameter :: eps_diffusivity = 0.0285D0 ! turbulent diffusivity ()
-real(kind=dp), parameter :: r_0 = 0.5D0 ! jet radius at exhaust (m)
-real(kind=dp), parameter :: x_m = r_0 * sqrt(2.D0/eps_diffusivity) ! unentrained length (m)
-real(kind=dp), parameter :: u_0 = 4.D2 ! exhaust velocity (m/s)
-real(kind=dp), parameter :: tau_m = x_m / u_0 ! mixing timescale (s)
 
 end module pbe_mod
 
@@ -219,6 +216,9 @@ do i=1,2
 end do
 read(30,*) agg_kernel
 read(30,*) agg_kernel_const
+read(30,*) r_0
+read(30,*) u_0
+read(30,*) eps_diffusivity
 read(30,*) T_exhaust
 read(30,*) T_ambient
 read(30,*) P_ambient
@@ -608,6 +608,8 @@ double precision dilution_factor, mixing_grad, temperature_new
 if (current_time.eq.0.D0) then
   temperature = T_exhaust
   Pvap = Pvap_exhaust
+  x_m = r_0 * sqrt(2.D0/eps_diffusivity)
+  tau_m = x_m / u_0
 
 ! Updating
 else

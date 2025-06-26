@@ -56,7 +56,7 @@ else if (solver_pbe == 3) then
 
 end if
 
-write(*,*) "Total change in f_dry(1): ",f_dry(1)-1.D0
+!write(*,*) "Total change in f_dry(1): ",f_dry(1)-1.D0
 
 ! Check properties are all valid
 do index=1,m
@@ -516,7 +516,7 @@ do index=1,m
   f_dry_prime(index) = f_dry_prime(index) + growth_source
 end do
 
-write(*,*) "Delta f_dry(1) after growth: ",f_dry_prime(1)*dt/ni_droplet(1)
+!write(*,*) "Delta f_dry(1) after growth: ",f_dry_prime(1)*dt/ni_droplet(1)
 
 !Aggregation - make include correct birth/death rates of f_dry
 
@@ -525,7 +525,7 @@ write(*,*) "Delta f_dry(1) after growth: ",f_dry_prime(1)*dt/ni_droplet(1)
 ! Change in ni_droplet
 f_dry_prime = f_dry_prime - f_dry * ni_droplet_prime
 
-write(*,*) "Delta f_dry(1) after change in ni_droplet: ",f_dry_prime(1)*dt/ni_droplet(1)
+!write(*,*) "Delta f_dry(1) after change in ni_droplet: ",f_dry_prime(1)*dt/ni_droplet(1)
 
 ! Scaling
 f_dry_prime = f_dry_prime/ni_droplet
