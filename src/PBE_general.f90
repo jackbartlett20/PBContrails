@@ -584,6 +584,60 @@ end subroutine inc_ratio
 
 !**********************************************************************************************
 
+subroutine calc_dt(dt_req, n_steps_to_double, dt)
+
+!**********************************************************************************************
+!
+! Calculates dt if using variable time step
+!
+! Jack Bartlett (27/06/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in)  :: dt_req
+double precision, intent(in)  :: n_steps_to_double
+double precision, intent(out) :: dt
+
+double precision g_term
+double precision g_term_relative(m)
+integer i
+logical risk_flag
+
+!----------------------------------------------------------------------------------------------
+
+risk_flag = .false.
+
+do i=1,m
+  call calc_growth_rate_liquid(d_m(i)/2.D0, kappa(i), rho(i), f_dry(i), g_term)
+  g_term_relative(i) = g_term/v_m(i)
+  if ((g_term < 0).and.(f_dry(i) > (1.D0-1.D-3))) then
+    risk_flag = .true.
+    n_steps_to_double = n_steps_to_double * 1.D6
+  end if
+end do
+
+!write(*,*) "Max growth: ",maxval(abs(g_term_relative))
+
+dt = 1.D0 / (n_steps_to_double * maxval(abs(g_term_relative)))
+
+if (risk_flag) then
+  dt = dt/1.D5
+end if
+
+dt = min(max(dt, 1.D-12), dt_req)
+
+end subroutine calc_dt
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
 subroutine pbe_set_environment(current_time)
 
 !**********************************************************************************************

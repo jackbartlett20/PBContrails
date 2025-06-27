@@ -1,6 +1,8 @@
 PSR INPUT DATA
 
 1.E0                            ! Integration time (s) -> int_time
-1.E-8                           ! Time step (s) -> dt
-0                               ! Kernel update on/off -> agg_kernel_update
+1.E-6                           ! Default time step (s) -> dt_req
+1                               ! Variable time step (on/off) -> variable_dt
+1.E4                            ! Minimum number of time steps required for 100% change in volume (if variable time step) -> n_steps_to_double
 1000                            ! Number of write ups (split evenly across integration time) -> total_writes
+0                               ! Kernel update on/off -> agg_kernel_update

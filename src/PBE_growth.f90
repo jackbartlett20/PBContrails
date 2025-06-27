@@ -553,7 +553,7 @@ F_d = (water_density * ideal_gas_constant * temperature) / (Psat_l * diffusivity
 
 F_k = (l_v * water_density)/(k_air_mod * temperature) * (l_v*water_molar_mass/(ideal_gas_constant*temperature) - 1)
 
-g_term = 1.D-3 * (4*pi*r) * 1/(F_d + F_k) * (Pvap/Psat_l - S_droplet)
+g_term = (4*pi*r) * 1/(F_d + F_k) * (Pvap/Psat_l - S_droplet)
 
 end subroutine calc_growth_rate_liquid
 

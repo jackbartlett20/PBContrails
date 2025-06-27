@@ -14,11 +14,12 @@ use pbe_mod
 
 implicit none
 
-double precision int_time,tin,current_time,meansize,dt
+double precision int_time,tin,current_time,meansize,dt_req,dt
 
 integer i,i_step,n_steps,iflag,flowflag,nin,i_write,n_write,total_writes
+double precision n_steps_to_double, write_interval, next_write_time
 logical first_write, stop_flag
-integer agg_kernel_update
+integer variable_dt,agg_kernel_update
 
 character(len=30) filename
 
@@ -37,23 +38,38 @@ do i=1,2
   read(30,*)
 end do
 read(30,*) int_time
-read(30,*) dt
-read(30,*) agg_kernel_update
+read(30,*) dt_req
+read(30,*) variable_dt
+read(30,*) n_steps_to_double
 read(30,*) total_writes
+read(30,*) agg_kernel_update
 close(30)
 
 ! Initialise PSR integration
-n_steps = int_time/dt
-n_write = n_steps/total_writes
-current_time= 0.D0
-i_write = 1
+dt = dt_req
+!n_steps = int_time/dt
+!n_write = n_steps/total_writes
+write_interval = int_time / total_writes
+next_write_time = write_interval
+current_time = 0.D0
+!i_write = 1
 first_write = .true.
 
 !----------------------------------------------------------------------------------------------
 
 ! Integration
 
-do i_step = 1,n_steps
+!do i_step = 1,n_steps
+do
+  if (current_time.ge.int_time) then
+    exit
+  end if
+
+  if (variable_dt==1) then
+    call calc_dt(dt_req, n_steps_to_double, dt)
+  end if
+
+  write(*,*) "Using dt = ",dt
 
   current_time = current_time + dt
 
@@ -83,7 +99,8 @@ do i_step = 1,n_steps
   end if
 
   ! Write outputs
-  if ((i_write==n_write).or.(i_step==n_steps)) then
+  !if ((i_write==n_write).or.(i_step==n_steps)) then
+  if (current_time.ge.next_write_time) then
 
     ! Droplets
     filename = 'output/psd_droplet.out'
@@ -105,9 +122,10 @@ do i_step = 1,n_steps
     call pbe_output_env(current_time, first_write)
 
     first_write = .false.
-    i_write = 0
+    !i_write = 0
+    next_write_time = next_write_time + write_interval
   end if
-  i_write = i_write + 1
+  !i_write = i_write + 1
 
 end do
 
