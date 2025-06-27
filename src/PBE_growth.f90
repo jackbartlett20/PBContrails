@@ -45,20 +45,16 @@ parameter(eps = 1.D1*epsilon(1.D0))
 
 ! Growth rate at right boundary calculation
 r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
-call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
+if (index==m) then
+  call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
+else
+  call calc_growth_rate_liquid(r, kappa(index+1), rho(index+1), f_dry(index+1), g_termr)
+end if
 ! Growth rate at left boundary calculation
 r = ((3.D0*v(index-1))/(4.D0*pi))**(1.D0/3.D0)
 call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_terml)
 
 call courant_check(g_termr, dt, index)
-
-if (index.eq.1) then
-  if ((g_terml<0.D0).and.(g_termr<0.D0)) then
-    write(*,*) "Negative growth at index 1"
-    write(*,*) "g_terml: ",g_terml
-    write(*,*) "g_termr: ",g_termr
-  end if
-end if
 
 !----------------------------------------------------------------------------------------------
 !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
@@ -189,7 +185,11 @@ parameter(eps = 1.D1*epsilon(1.D0))
 
 ! Growth rate at right boundary calculation
 r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
-call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
+if (index==m) then
+  call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
+else
+  call calc_growth_rate_liquid(r, kappa(index+1), rho(index+1), f_dry(index+1), g_termr)
+end if
 ! Growth rate at left boundary calculation
 r = ((3.D0*v(index-1))/(4.D0*pi))**(1.D0/3.D0)
 call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_terml)
@@ -364,7 +364,11 @@ parameter(eps = 1.D1*epsilon(1.D0))
 
 ! Growth rate at right boundary calculation
 r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
-call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
+if (index==m) then
+  call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
+else
+  call calc_growth_rate_liquid(r, kappa(index+1), rho(index+1), f_dry(index+1), g_termr)
+end if
 ! Growth rate at left boundary calculation
 r = ((3.D0*v(index-1))/(4.D0*pi))**(1.D0/3.D0)
 call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_terml)

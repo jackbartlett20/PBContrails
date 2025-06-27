@@ -9,7 +9,7 @@
 
 !**********************************************************************************************
 
-subroutine pbe_integ(dt, stop_flag)
+subroutine pbe_integ(dt, integ_success)
 
 !**********************************************************************************************
 !
@@ -30,19 +30,17 @@ use pbe_mod
 implicit none
 
 double precision, intent(in) :: dt
-logical, intent(out) :: stop_flag
+logical, intent(out) :: integ_success
 
 double precision g_term, sum_gn
 integer index
 
 !----------------------------------------------------------------------------------------------
 
-stop_flag = .false.
-
 if (solver_pbe == 1) then
 
   !Euler explicit
-  call pbe_integ_euler(dt)
+  call pbe_integ_euler(dt, integ_success)
 
 else if (solver_pbe == 2) then
 
@@ -56,54 +54,29 @@ else if (solver_pbe == 3) then
 
 end if
 
-!write(*,*) "Total change in f_dry(1): ",f_dry(1)-1.D0
 
-! Check properties are all valid
-do index=1,m
-  if (kappa(index)<0.D0) then
-    write(*,*) "ERROR: Found kappa = ",kappa(index)," at index ",index
-    stop_flag = .true.
-  else if (kappa(index)>1.D0) then
-    write(*,*) "ERROR: Found kappa = ",kappa(index)," at index ",index
-    stop_flag = .true.
-  else if (rho(index)<0.D0) then
-    write(*,*) "ERROR: Found rho = ",rho(index)," at index ",index
-    stop_flag = .true.
-  else if (f_dry(index)<0.D0) then
-    write(*,*) "ERROR: Found f_dry = ",f_dry(index)," at index ",index
-    stop_flag = .true.
-  else if ((f_dry(index)>1.D0).and.(f_dry(index)<1.D0+f_dry_tolerance)) then
-  !  write(*,*) "WARNING: Found f_dry = ",f_dry(index)," at index ",index,". Continuing."
-    f_dry(index) = 1.D0
-  else if (f_dry(index)>1.D0+f_dry_tolerance) then
-    write(*,*) "ERROR: Found f_dry = ",f_dry(index)," at index ",index
-    stop_flag = .true.
-  end if
-end do
+if (integ_success) then
+ ! Change everything else
+
+  do index=1,m
+    if ((f_dry(index)>1.D0).and.(f_dry(index)<1.D0+f_dry_tolerance)) then
+    !  write(*,*) "WARNING: Found f_dry = ",f_dry(index)," at index ",index,". Continuing."
+      f_dry(index) = 1.D0
+    end if
+  end do
 
 
-! Change Pvap due to growth
-sum_gn = 0.D0
-do index=1,m
-  call calc_growth_rate_liquid(d_m(index)/2.D0, kappa(index), rho(index), f_dry(index), g_term)
-  sum_gn = sum_gn + g_term*ni_droplet(index)*dv(index)
-end do
-Pvap = Pvap + (boltzmann_constant * temperature * (sum_gn / water_molecular_vol)) * dt
+  ! Change Pvap due to growth
+  sum_gn = 0.D0
+  do index=1,m
+    call calc_growth_rate_liquid(d_m(index)/2.D0, kappa(index), rho(index), f_dry(index), g_term)
+    sum_gn = sum_gn + g_term*ni_droplet(index)*dv(index)
+  end do
+  Pvap = Pvap + (boltzmann_constant * temperature * (sum_gn / water_molecular_vol)) * dt
+
+end if
 
 
-! Cap at zero after growth
-!where (ni_droplet < 0.D0)
-!  ni_droplet = 0.D0
-!end where
-
-!sum_VG = 0.
-
-! Adjust water vapour due to droplet growth
-!Pvap = Pvap + ((sum_VG / water_molecular_vol) * boltzmann_constant * temperature) * dt
-!
-!if (Pvap<0.D0) then
-!  Pvap = 0.D0 ! just in case
-!end if
 
 end subroutine pbe_integ
 
@@ -113,7 +86,7 @@ end subroutine pbe_integ
 
 !**********************************************************************************************
 
-subroutine pbe_integ_euler(dt)
+subroutine pbe_integ_euler(dt, integ_success)
 
 !**********************************************************************************************
 !
@@ -128,6 +101,7 @@ use pbe_mod
 implicit none
 
 double precision, intent(in) :: dt
+logical, intent(out) :: integ_success
 
 double precision ni_droplet_prime(m),kappa_prime(m),rho_prime(m),f_dry_prime(m)
 
@@ -141,10 +115,14 @@ call pbe_ydot_rho(rho,ni_droplet_prime,rho_prime,dt)
 
 call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime,dt)
 
-ni_droplet = ni_droplet + ni_droplet_prime * dt
-kappa = kappa + kappa_prime * dt
-rho = rho + rho_prime * dt
-f_dry = f_dry + f_dry_prime * dt
+call check_valid_properties(dt,kappa_prime,rho_prime,f_dry_prime,integ_success)
+
+if (integ_success) then
+  ni_droplet = ni_droplet + ni_droplet_prime * dt
+  kappa = kappa + kappa_prime * dt
+  rho = rho + rho_prime * dt
+  f_dry = f_dry + f_dry_prime * dt
+end if
 
 
 end subroutine pbe_integ_euler
@@ -243,6 +221,65 @@ ni_droplet = ni_droplet + (1.D0 / 6.D0) * k1 + (1.D0 / 3.D0) * k2 + (1.D0 / 3.D0
 
 
 end subroutine pbe_integ_RK4
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine check_valid_properties(dt,kappa_prime,rho_prime,f_dry_prime,integ_success)
+
+!**********************************************************************************************
+!
+! Checks if property values would be valid if updated
+!
+! Jack Bartlett (27/06/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in)                   :: dt
+double precision, dimension(m), intent(in)     :: kappa_prime
+double precision, dimension(m), intent(in)     :: rho_prime
+double precision, dimension(m), intent(in)     :: f_dry_prime
+logical, intent(out)                           :: integ_success
+
+integer i
+
+!----------------------------------------------------------------------------------------------
+
+integ_success = .true.
+
+! Check properties are all valid
+do i=1,m
+  if ((kappa(i)+kappa_prime(i)*dt)<0.D0) then
+    write(*,*) "ERROR: Found kappa = ",(kappa(i)+kappa_prime(i)*dt)," at index ",i
+    integ_success = .false.
+    exit
+  else if ((kappa(i)+kappa_prime(i)*dt)>1.D0) then
+    write(*,*) "ERROR: Found kappa = ",(kappa(i)+kappa_prime(i)*dt)," at index ",i
+    integ_success = .false.
+    exit
+  else if ((rho(i)+rho_prime(i)*dt)<0.D0) then
+    write(*,*) "ERROR: Found rho = ",(rho(i)+rho_prime(i)*dt)," at index ",i
+    integ_success = .false.
+    exit
+  else if ((f_dry(i)+f_dry_prime(i)*dt)<0.D0) then
+    write(*,*) "ERROR: Found f_dry = ",(f_dry(i)+f_dry_prime(i)*dt)," at index ",i
+    integ_success = .false.
+    exit
+  else if ((f_dry(i)+f_dry_prime(i)*dt)>1.D0+f_dry_tolerance) then
+    write(*,*) "ERROR: Found f_dry = ",(f_dry(i)+f_dry_prime(i)*dt)," at index ",i
+    integ_success = .false.
+    exit
+  end if
+end do
+
+end subroutine check_valid_properties
 
 !**********************************************************************************************
 

@@ -14,11 +14,11 @@ use pbe_mod
 
 implicit none
 
-double precision int_time,tin,current_time,meansize,dt_req,dt
+double precision int_time,tin,current_time,meansize,dt_req,dt_min,dt
 
 integer i,i_step,n_steps,iflag,flowflag,nin,i_write,n_write,total_writes
-double precision n_steps_to_double, write_interval, next_write_time
-logical first_write, stop_flag
+double precision write_interval, next_write_time
+logical first_write, integ_success
 integer variable_dt,agg_kernel_update
 
 character(len=30) filename
@@ -40,7 +40,7 @@ end do
 read(30,*) int_time
 read(30,*) dt_req
 read(30,*) variable_dt
-read(30,*) n_steps_to_double
+read(30,*) dt_min
 read(30,*) total_writes
 read(30,*) agg_kernel_update
 close(30)
@@ -52,24 +52,30 @@ dt = dt_req
 write_interval = int_time / total_writes
 next_write_time = write_interval
 current_time = 0.D0
-!i_write = 1
 first_write = .true.
+integ_success = .true.
 
 !----------------------------------------------------------------------------------------------
 
 ! Integration
 
-!do i_step = 1,n_steps
 do
   if (current_time.ge.int_time) then
     exit
   end if
 
-  if (variable_dt==1) then
-    call calc_dt(dt_req, n_steps_to_double, dt)
+  ! Determine dt
+  if (integ_success) then
+    dt = dt_req
+  else
+    if (dt.le.(1.1*dt_min)) then
+      write(*,*) "Reached minimum allowable dt at t = ",current_time
+      stop
+    end if
+    dt = max(dt/1.D1, dt_min)
+    write(*,*) "Integration step failed at t = ",current_time
+    write(*,*) "Trying dt = ",dt
   end if
-
-  write(*,*) "Using dt = ",dt
 
   current_time = current_time + dt
 
@@ -84,22 +90,21 @@ do
     call PBE_agg_beta(2)
   end if
 
+  ! Integrate
+  call pbe_integ(dt, integ_success)
+
+  if (.not.integ_success) then
+    current_time = current_time - dt
+    cycle ! returns to start of do loop
+  end if
+
   ! Update volume of water in droplets
 
   ! Update freezing
   ! Currently assumes whole volume is water
   call pbe_freezing(dt)
 
-  ! Integrate
-  call pbe_integ(dt, stop_flag)
-
-  if (stop_flag) then
-    write(*,*) "Stopping at t = ",current_time
-    stop
-  end if
-
   ! Write outputs
-  !if ((i_write==n_write).or.(i_step==n_steps)) then
   if (current_time.ge.next_write_time) then
 
     ! Droplets
@@ -122,10 +127,8 @@ do
     call pbe_output_env(current_time, first_write)
 
     first_write = .false.
-    !i_write = 0
     next_write_time = next_write_time + write_interval
   end if
-  !i_write = i_write + 1
 
 end do
 
