@@ -14,13 +14,14 @@ PBE INPUT DATA
 0.                              ! Fragmentation rate constant -> break_const
 3                               ! Order of Gaussian quadrature (for fragmentation) -> order_of_gq
 1                               ! Grid type -> grid_type
-200                             ! Number of volume grid points -> m
+100                             ! Number of volume grid points -> m
 4.E-24                          ! Minimum size in grid (m3) (must be >0 for geometric grid) -> grid_lb
 4.E-21                          ! Maximum size in grid (m3) -> grid_rb
 1.                              ! Volume of nuclei -> v0 (obsolete)
 1                               ! Integration method -> solver_pbe
 1.E-3                           ! Allowable rise in dry fraction above 1 or below 0 -> f_dry_tolerance
-1.E-9                           ! Perturbation suppression -> pert_supp
+0.E-7                           ! Perturbation suppression -> pert_supp
+1.E-6                           ! Courant number condition (typically =1; lower is better for stability) -> courant_condition
 
 
 Aggregation kernels:
@@ -39,6 +40,11 @@ Uniform binary is currently implemented, for other models edit breakage_fcn
 Grid types:
 1. Geometric
 2. Uniform
+
+Integration methods:
+1. Explicit Euler
+2. 2nd order Runge-Kutta
+3. 4th order Runge-Kutta
 
 Perturbation suppression:
 For changes in properties (hygroscopicity, density, and dry fraction), if the

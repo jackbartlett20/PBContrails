@@ -8,11 +8,11 @@
 
 !**********************************************************************************************
 
-subroutine growth_tvd(ni, index, dt, growth_source)
+subroutine growth_tvd(ni, index, dt, growth_source, integ_success)
 
 !**********************************************************************************************
 !
-! Growth for finite volume method
+! Growth for finite volume method; used for particles and quantity of kappa
 !
 ! Stelios Rigopoulos, Fabian Sewerin, Binxuan Sun
 ! Modified by Jack Bartlett
@@ -27,6 +27,7 @@ double precision, dimension(m), intent(in) :: ni
 integer, intent(in)                        :: index
 double precision, intent(in)               :: dt ! only for Courant number check
 double precision, intent(out)              :: growth_source
+logical, intent(inout)                     :: integ_success
 
 double precision :: g_terml,g_termr,phi
 double precision :: gnl,gnr           !< (G*N) at left surface and right surface
@@ -44,17 +45,9 @@ parameter(eps = 1.D1*epsilon(1.D0))
 !**********************************************************************************************
 
 ! Growth rate at right boundary calculation
-r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
-if (index==m) then
-  call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
-else
-  call calc_growth_rate_liquid(r, kappa(index+1), rho(index+1), f_dry(index+1), g_termr)
-end if
+g_termr = g_array(index)
 ! Growth rate at left boundary calculation
-r = ((3.D0*v(index-1))/(4.D0*pi))**(1.D0/3.D0)
-call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_terml)
-
-call courant_check(g_termr, dt, index)
+g_terml = g_array(index-1)
 
 !----------------------------------------------------------------------------------------------
 !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
@@ -184,15 +177,9 @@ parameter(eps = 1.D1*epsilon(1.D0))
 !**********************************************************************************************
 
 ! Growth rate at right boundary calculation
-r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
-if (index==m) then
-  call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
-else
-  call calc_growth_rate_liquid(r, kappa(index+1), rho(index+1), f_dry(index+1), g_termr)
-end if
+g_termr = g_array(index)
 ! Growth rate at left boundary calculation
-r = ((3.D0*v(index-1))/(4.D0*pi))**(1.D0/3.D0)
-call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_terml)
+g_terml = g_array(index-1)
 
 !----------------------------------------------------------------------------------------------
 !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
@@ -363,15 +350,9 @@ parameter(eps = 1.D1*epsilon(1.D0))
 !**********************************************************************************************
 
 ! Growth rate at right boundary calculation
-r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
-if (index==m) then
-  call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_termr)
-else
-  call calc_growth_rate_liquid(r, kappa(index+1), rho(index+1), f_dry(index+1), g_termr)
-end if
+g_termr = g_array(index)
 ! Growth rate at left boundary calculation
-r = ((3.D0*v(index-1))/(4.D0*pi))**(1.D0/3.D0)
-call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_terml)
+g_terml = g_array(index-1)
 
 !----------------------------------------------------------------------------------------------
 !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
@@ -639,11 +620,12 @@ end subroutine calc_J
 
 !**********************************************************************************************
 
-subroutine courant_check(g_term, dt, index)
+subroutine courant_check(dt, integ_success)
 
 !**********************************************************************************************
 !
-! Checks if the Courant-Friedrichs-Lewy (CFL) condition condition (C <= 1 for PBE) holds.
+! Checks if the Courant-Friedrichs-Lewy (CFL) condition for stability (C <= desired number)
+! holds.
 !
 ! By Jack Bartlett (24/06/2025)
 !
@@ -653,21 +635,24 @@ use pbe_mod
 
 implicit none
 
-double precision, intent(in) :: g_term
 double precision, intent(in) :: dt
-integer, intent(in) :: index
+logical, intent(out)         :: integ_success
 
 double precision courant
+integer i
 
 !----------------------------------------------------------------------------------------------
 
-courant = g_term * dt / dv(index)
-if (courant>1.D0) then
-  write(*,*) "Courant number of ",courant," detected at index ",index,"."
-  write(*,*) "Courant number should be <= 1 for growth function to work."
-  write(*,*) "Reduce dt proportionately."
-  stop
-end if
+integ_success = .true.
+
+do i=1,m
+  courant = max(abs(g_array(i-1)), abs(g_array(i))) * dt / dv(i)
+  if (courant>courant_condition) then
+    write(*,*) "Courant number of ",courant," detected at index ",i,"."
+    integ_success = .false.
+    exit
+  end if
+end do
 
 end subroutine courant_check
 

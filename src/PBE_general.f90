@@ -37,6 +37,7 @@ double precision, allocatable, dimension(:) :: dv
 double precision, allocatable, dimension(:) :: v_m
 double precision, allocatable, dimension(:) :: d_m
 double precision, allocatable, dimension(:) :: nuc
+double precision, allocatable, dimension(:) :: g_array
 
 double precision, allocatable, dimension(:) :: ni_droplet
 double precision, allocatable, dimension(:) :: ni_crystal
@@ -50,6 +51,7 @@ double precision agg_kernel_const
 double precision break_const
 double precision f_dry_tolerance
 double precision pert_supp
+double precision courant_condition
 
 integer m,grid_type
 integer i_gm
@@ -235,6 +237,7 @@ read(30,*) v0
 read(30,*) solver_pbe
 read(30,*) f_dry_tolerance
 read(30,*) pert_supp
+read(30,*) courant_condition
 close(30)
 
 
@@ -423,7 +426,7 @@ integer i
 !----------------------------------------------------------------------------------------------
 
 ! Allocate arrays
-allocated_size_bytes = 17*8*m
+allocated_size_bytes = 11*8*m
 if (allocated_size_bytes > 1000**3) then
   write(*,*) "Allocating around",(allocated_size_bytes/(1000**3))," GB to arrays."
 else if (allocated_size_bytes > 1000**2) then
@@ -433,7 +436,8 @@ else if (allocated_size_bytes > 1000) then
 else
   write(*,*) "Allocating around",(allocated_size_bytes)," bytes to arrays."
 end if
-allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),ni_droplet(m),ni_crystal(m),kappa(m),rho(m),f_dry(m))
+allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),g_array(m))
+allocate(ni_droplet(m),ni_crystal(m),kappa(m),rho(m),f_dry(m))
 
 ! Calculate grid
 if (grid_type==1) then
@@ -664,6 +668,44 @@ l_v = 2.501D6 - 2.37D3 * (temperature - 273.15D0)
 
 
 end subroutine pbe_set_environment
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_update_g_array()
+
+!**********************************************************************************************
+!
+! Update array of growth terms for use in ni_droplet and property PBEs
+!
+! By Jack Bartlett (01/07/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision r
+
+integer index
+
+!----------------------------------------------------------------------------------------------
+
+do index=0,m
+  r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
+  if (index==m) then
+    call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_array(index))
+  else
+    call calc_growth_rate_liquid(r, kappa(index+1), rho(index+1), f_dry(index+1), g_array(index))
+  end if
+end do
+
+
+end subroutine pbe_update_g_array
 
 !**********************************************************************************************
 
@@ -917,6 +959,49 @@ end subroutine pbe_output_env
 
 !**********************************************************************************************
 
+subroutine pbe_output_growth(current_time,first_write)
+
+!**********************************************************************************************
+!
+! Writes growth rate at interval boundaries
+!
+! By Jack Bartlett (01/07/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in) :: current_time
+logical, intent(in) :: first_write
+
+integer i
+
+!----------------------------------------------------------------------------------------------
+
+
+! Write environment variables to end of growth_rate.out
+if (first_write) then
+  open(99,file='output/growth_rate.out',status='replace')
+else
+  open(99,file='output/growth_rate.out',status='old',position='append')
+end if
+do i=0,m
+  write(99,1004) current_time, v(i), g_array(i)
+end do
+close(99)
+
+1004 format(3E20.10)
+
+end subroutine pbe_output_growth
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
 subroutine pbe_deallocate()
 
 !**********************************************************************************************
@@ -931,7 +1016,7 @@ subroutine pbe_deallocate()
 
 use pbe_mod
 
-deallocate(v,dv,v_m,d_m,nuc,ni_droplet,ni_crystal,kappa,rho,f_dry)
+deallocate(v,dv,v_m,d_m,nuc,g_array,ni_droplet,ni_crystal,kappa,rho,f_dry)
 
 end subroutine pbe_deallocate
 

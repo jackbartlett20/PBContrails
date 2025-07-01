@@ -16,7 +16,7 @@ implicit none
 
 double precision int_time,tin,current_time,meansize,dt_req,dt_min,dt
 
-integer i,i_step,n_steps,iflag,flowflag,nin,i_write,n_write,total_writes
+integer i,i_step,iflag,flowflag,nin,i_write,total_writes,output_growth
 double precision write_interval, next_write_time
 logical first_write, integ_success
 integer variable_dt,agg_kernel_update
@@ -42,13 +42,12 @@ read(30,*) dt_req
 read(30,*) variable_dt
 read(30,*) dt_min
 read(30,*) total_writes
+read(30,*) output_growth
 read(30,*) agg_kernel_update
 close(30)
 
 ! Initialise PSR integration
 dt = dt_req
-!n_steps = int_time/dt
-!n_write = n_steps/total_writes
 write_interval = int_time / total_writes
 next_write_time = write_interval
 current_time = 0.D0
@@ -65,16 +64,24 @@ do
   end if
 
   ! Determine dt
-  if (integ_success) then
-    dt = dt_req
+  if (variable_dt.eq.1) then
+    if (integ_success) then
+      dt = dt_req
+    else
+      if (dt.le.(1.1*dt_min)) then
+        write(*,*) "Reached minimum allowable dt at t = ",current_time
+        stop
+      else
+        dt = max(dt/1.D1, dt_min)
+        write(*,*) "Integration step failed at t = ",current_time
+        write(*,*) "Trying dt = ",dt
+      end if
+    end if
   else
-    if (dt.le.(1.1*dt_min)) then
-      write(*,*) "Reached minimum allowable dt at t = ",current_time
+    if (.not.integ_success) then
+      write(*,*) "Integration step failed at t = ",current_time
       stop
     end if
-    dt = max(dt/1.D1, dt_min)
-    write(*,*) "Integration step failed at t = ",current_time
-    write(*,*) "Trying dt = ",dt
   end if
 
   current_time = current_time + dt
@@ -88,6 +95,17 @@ do
     ! Insert here the expression for updating the kernel
     ! agg_kernel_const = 
     call PBE_agg_beta(2)
+  end if
+
+  ! Update the array of growth terms
+  call pbe_update_g_array()
+
+  ! Check Courant number condition
+  call courant_check(dt, integ_success)
+
+  if (.not.integ_success) then
+    current_time = current_time - dt
+    cycle ! returns to start of do loop
   end if
 
   ! Integrate
@@ -125,6 +143,11 @@ do
 
     ! Environment variables
     call pbe_output_env(current_time, first_write)
+
+    ! Growth rate
+    if (output_growth==1) then
+      call pbe_output_growth(current_time, first_write)
+    end if
 
     first_write = .false.
     next_write_time = next_write_time + write_interval
