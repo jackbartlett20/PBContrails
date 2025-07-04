@@ -72,8 +72,12 @@ if (integ_success) then
   ! Change Pvap due to growth
   sum_gn = 0.D0
   do index=1,m
-    g_term = 0.5D0 * (g_array(index-1) + g_array(index))
+    ! Droplets
+    g_term = 0.5D0 * (g_droplet(index-1) + g_droplet(index))
     sum_gn = sum_gn + g_term*ni_droplet(index)*dv(index)
+    ! Crystals
+    g_term = 0.5D0 * (g_crystal(index-1) + g_crystal(index))
+    sum_gn = sum_gn + g_term*ni_crystal(index)*dv(index)
   end do
   Pvap = Pvap + (boltzmann_constant * temperature * (-sum_gn / water_molecular_vol)) * dt
 
@@ -105,29 +109,33 @@ implicit none
 double precision, intent(in) :: dt
 logical, intent(inout) :: integ_success
 
-double precision ni_droplet_prime(m),kappa_prime(m),rho_prime(m),f_dry_prime(m)
+double precision ni_droplet_prime(m),ni_crystal_prime(m)
+double precision kappa_prime(m),rho_prime(m),f_dry_prime(m)
 integer index
 
 !----------------------------------------------------------------------------------------------
 
-call pbe_ydot_droplet(ni_droplet,ni_droplet_prime,dt,integ_success)
+call pbe_ydot_droplet(ni_droplet,ni_droplet_prime)
 
-call pbe_ydot_kappa(kappa,ni_droplet_prime,kappa_prime,dt,integ_success)
+call pbe_ydot_crystal(ni_crystal,ni_crystal_prime)
 
-call pbe_ydot_rho(rho,ni_droplet_prime,rho_prime,dt)
+!call pbe_ydot_kappa(kappa,ni_droplet_prime,kappa_prime)
 
-!call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime,dt)
+!call pbe_ydot_rho(rho,ni_droplet_prime,rho_prime)
+
+!call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime)
 
 do index=1,m
-  f_dry_prime(index) = -f_dry(index) * 0.5D0*(g_array(index-1)+g_array(index)) / v_m(index)
+  f_dry_prime(index) = -f_dry(index) * 0.5D0*(g_droplet(index-1)+g_droplet(index)) / v_m(index)
 end do
 
 call check_valid_properties(dt,kappa_prime,rho_prime,f_dry_prime,integ_success)
 
 if (integ_success) then
   ni_droplet = ni_droplet + ni_droplet_prime * dt
-  kappa = kappa + kappa_prime * dt
-  rho = rho + rho_prime * dt
+  ni_crystal = ni_crystal + ni_crystal_prime * dt
+  !kappa = kappa + kappa_prime * dt
+  !rho = rho + rho_prime * dt
   f_dry = f_dry + f_dry_prime * dt
 end if
 
@@ -157,29 +165,37 @@ implicit none
 double precision, intent(in) :: dt
 logical, intent(inout) :: integ_success
 
-double precision ni_droplet_prime(m),kappa_prime(m),rho_prime(m),f_dry_prime(m)
+double precision ni_droplet_prime(m),ni_crystal_prime(m)
+double precision kappa_prime(m),rho_prime(m),f_dry_prime(m)
 double precision temp(m)
 
 !----------------------------------------------------------------------------------------------
 
-call pbe_ydot_droplet(ni_droplet,ni_droplet_prime,dt,integ_success)
+call pbe_ydot_droplet(ni_droplet,ni_droplet_prime)
 temp = ni_droplet + 0.5D0 * ni_droplet_prime * dt
-call pbe_ydot_droplet(temp,ni_droplet_prime,dt,integ_success)
+call pbe_ydot_droplet(temp,ni_droplet_prime)
 
-call pbe_ydot_kappa(kappa,ni_droplet_prime,kappa_prime,dt,integ_success)
+call pbe_ydot_crystal(ni_crystal,ni_crystal_prime)
+temp = ni_droplet + 0.5D0 * ni_crystal_prime * dt
+call pbe_ydot_crystal(temp,ni_crystal_prime)
+
+call pbe_ydot_kappa(kappa,ni_droplet_prime,kappa_prime)
 temp = kappa + 0.5D0 * kappa_prime * dt
-call pbe_ydot_kappa(temp,ni_droplet_prime,kappa_prime,dt,integ_success)
+call pbe_ydot_kappa(temp,ni_droplet_prime,kappa_prime)
 
-call pbe_ydot_rho(rho,ni_droplet_prime,rho_prime,dt)
+call pbe_ydot_rho(rho,ni_droplet_prime,rho_prime)
 temp = rho + 0.5D0 * rho_prime * dt
-call pbe_ydot_rho(temp,ni_droplet_prime,rho_prime,dt)
+call pbe_ydot_rho(temp,ni_droplet_prime,rho_prime)
 
-call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime,dt)
+call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime)
 temp = f_dry + 0.5D0 * f_dry_prime * dt
-call pbe_ydot_f_dry(temp,ni_droplet_prime,f_dry_prime,dt)
+call pbe_ydot_f_dry(temp,ni_droplet_prime,f_dry_prime)
+
+call check_valid_properties(dt,kappa_prime,rho_prime,f_dry_prime,integ_success)
 
 if (integ_success) then
   ni_droplet = ni_droplet + ni_droplet_prime * dt
+  ni_crystal = ni_crystal + ni_crystal_prime * dt
   kappa = kappa + kappa_prime * dt
   rho = rho + rho_prime * dt
   f_dry = f_dry + f_dry_prime * dt
@@ -216,16 +232,16 @@ double precision k1(m),k2(m),k3(m),k4(m)
 
 !----------------------------------------------------------------------------------------------
 
-call pbe_ydot_droplet(ni_droplet,niprime,dt,integ_success)
+call pbe_ydot_droplet(ni_droplet,niprime)
 k1 = niprime * dt
 nitemp = ni_droplet + 0.5D0 * k1
-call pbe_ydot_droplet(nitemp,niprime,dt,integ_success)
+call pbe_ydot_droplet(nitemp,niprime)
 k2 = niprime * dt
 nitemp = ni_droplet + 0.5D0 * k2
-call pbe_ydot_droplet(nitemp,niprime,dt,integ_success)
+call pbe_ydot_droplet(nitemp,niprime)
 k3 = niprime * dt
 nitemp = ni_droplet + k3
-call pbe_ydot_droplet(nitemp,niprime,dt,integ_success)
+call pbe_ydot_droplet(nitemp,niprime)
 k4 = niprime * dt
 ni_droplet = ni_droplet + (1.D0 / 6.D0) * k1 + (1.D0 / 3.D0) * k2 + (1.D0 / 3.D0) * k3 + (1.D0 / 6.D0) * k4
 
@@ -295,7 +311,7 @@ end subroutine check_valid_properties
 
 !**********************************************************************************************
 
-subroutine pbe_ydot_droplet(ni_droplet_temp,ni_droplet_prime,dt,integ_success)
+subroutine pbe_ydot_droplet(ni_droplet_temp,ni_droplet_prime)
 
 !**********************************************************************************************
 !
@@ -312,8 +328,6 @@ implicit none
 
 double precision, dimension(m), intent(in)  :: ni_droplet_temp
 double precision, dimension(m), intent(out) :: ni_droplet_prime
-double precision, intent(in) :: dt
-logical, intent(inout) :: integ_success
 
 double precision growth_source,growth_mass_source
 
@@ -330,7 +344,7 @@ ni_droplet_prime = 0. ! d(ni)/dt
 
 ! Particle growth
 do index=1,m
-  call growth_tvd(ni_droplet_temp, index, dt, growth_source, integ_success)
+  call growth_tvd(ni_droplet_temp, index, 0, growth_source)
   ni_droplet_prime(index) = ni_droplet_prime(index) + growth_source
 end do
 
@@ -356,7 +370,7 @@ end subroutine pbe_ydot_droplet
 
 !**********************************************************************************************
 
-subroutine pbe_ydot_crystal(ni_crystal_temp,ni_crystal_prime,dt)
+subroutine pbe_ydot_crystal(ni_crystal_temp,ni_crystal_prime)
 
 !**********************************************************************************************
 !
@@ -373,7 +387,6 @@ implicit none
 
 double precision, dimension(m), intent(in)  :: ni_crystal_temp
 double precision, dimension(m), intent(out) :: ni_crystal_prime
-double precision, intent(in) :: dt
 
 double precision growth_source,growth_mass_source
 
@@ -383,7 +396,29 @@ integer index
 
 ni_crystal_prime = 0. ! d(ni)/dt
 
+! Nucleation
+! None unless homogeneous nucleation at high RH is added
 
+
+! Particle growth
+do index=1,m
+  call growth_tvd(ni_crystal_temp, index, 1, growth_source)
+  ni_crystal_prime(index) = ni_crystal_prime(index) + growth_source
+end do
+
+
+!Aggregation
+if (agg_kernel>0) then
+  ! CFV formulation of Liu and Rigopoulos (2019)
+  ! Note 1: current value of niprime is augmented within pbe_agg_cfv
+  ! Note 2: contracting grid is not implemented
+  call pbe_agg_cfv(dv,v_m,ni_crystal_temp,ni_crystal_prime)
+end if
+
+!Fragmentation
+if (break_const>0.) then
+  call pbe_breakage_cfv(ni_crystal_temp,ni_crystal_prime)
+end if
 
 end subroutine pbe_ydot_crystal
 
@@ -393,7 +428,7 @@ end subroutine pbe_ydot_crystal
 
 !**********************************************************************************************
 
-subroutine pbe_ydot_kappa(kappa_temp,ni_droplet_prime,kappa_prime,dt,integ_success)
+subroutine pbe_ydot_kappa(kappa_temp,ni_droplet_prime,kappa_prime)
 
 !**********************************************************************************************
 !
@@ -410,8 +445,6 @@ implicit none
 double precision, dimension(m), intent(in)  :: kappa_temp
 double precision, dimension(m), intent(in)  :: ni_droplet_prime
 double precision, dimension(m), intent(out) :: kappa_prime
-double precision, intent(in) :: dt
-logical, intent(inout) :: integ_success
 
 double precision nkappa(m) ! total quantity of kappa
 double precision growth_source,growth_mass_source
@@ -426,7 +459,7 @@ nkappa = kappa_temp*ni_droplet
 
 ! Particle growth
 do index=1,m
-  call growth_tvd(nkappa, index, dt, growth_source, integ_success)
+  call growth_tvd(nkappa, index, 0, growth_source)
   kappa_prime(index) = kappa_prime(index) + growth_source
 end do
 
@@ -449,13 +482,6 @@ kappa_prime = kappa_prime - kappa * ni_droplet_prime
 ! Scaling
 kappa_prime = kappa_prime/ni_droplet
 
-! Perturbation suppression
-do index=1,m
-  if (abs(kappa_prime(index))*dt < pert_supp * kappa(index)) then
-    kappa_prime(index) = 0.D0
-  end if
-end do
-
 end subroutine pbe_ydot_kappa
 
 !**********************************************************************************************
@@ -464,7 +490,7 @@ end subroutine pbe_ydot_kappa
 
 !**********************************************************************************************
 
-subroutine pbe_ydot_rho(rho_temp,ni_droplet_prime,rho_prime,dt)
+subroutine pbe_ydot_rho(rho_temp,ni_droplet_prime,rho_prime)
 
 !**********************************************************************************************
 !
@@ -481,7 +507,6 @@ implicit none
 double precision, dimension(m), intent(in)  :: rho_temp
 double precision, dimension(m), intent(in)  :: ni_droplet_prime
 double precision, dimension(m), intent(out) :: rho_prime
-double precision, intent(in) :: dt
 
 !double precision nrho(m) ! total quantity of rho
 double precision growth_source,g_term
@@ -497,7 +522,7 @@ rho_prime= 0.
 
 ! Particle growth
 do index=1,m
-  call growth_tvd_rho(ni_droplet, rho_temp, index, dt, growth_source)
+  call growth_tvd_rho(ni_droplet, rho_temp, index, growth_source)
   rho_prime(index) = rho_prime(index) + growth_source
 end do
 
@@ -511,13 +536,6 @@ rho_prime = rho_prime - rho * ni_droplet_prime
 ! Scaling
 rho_prime = rho_prime/ni_droplet
 
-! Perturbation suppression
-do index=1,m
-  if (abs(rho_prime(index))*dt < pert_supp * rho(index)) then
-    rho_prime(index) = 0.D0
-  end if
-end do
-
 end subroutine pbe_ydot_rho
 
 !**********************************************************************************************
@@ -526,7 +544,7 @@ end subroutine pbe_ydot_rho
 
 !**********************************************************************************************
 
-subroutine pbe_ydot_f_dry(f_dry_temp,ni_droplet_prime,f_dry_prime,dt)
+subroutine pbe_ydot_f_dry(f_dry_temp,ni_droplet_prime,f_dry_prime)
 
 !**********************************************************************************************
 !
@@ -543,7 +561,6 @@ implicit none
 double precision, dimension(m), intent(in)  :: f_dry_temp
 double precision, dimension(m), intent(in)  :: ni_droplet_prime
 double precision, dimension(m), intent(out) :: f_dry_prime
-double precision, intent(in) :: dt
 
 !double precision nf_dry(m) ! total quantity of f_dry
 double precision growth_source,g_term
@@ -559,11 +576,9 @@ f_dry_prime= 0.
 
 ! Particle growth
 do index=1,m
-  call growth_tvd_f_dry(ni_droplet, f_dry_temp, index, dt, growth_source)
+  call growth_tvd_f_dry(ni_droplet, f_dry_temp, index, growth_source)
   f_dry_prime(index) = f_dry_prime(index) + growth_source
 end do
-
-!write(*,*) "Delta f_dry(1) after growth: ",f_dry_prime(1)*dt/ni_droplet(1)
 
 !Aggregation - make include correct birth/death rates of f_dry
 
@@ -572,17 +587,9 @@ end do
 ! Change in ni_droplet
 f_dry_prime = f_dry_prime - f_dry * ni_droplet_prime
 
-!write(*,*) "Delta f_dry(1) after change in ni_droplet: ",f_dry_prime(1)*dt/ni_droplet(1)
-
 ! Scaling
 f_dry_prime = f_dry_prime/ni_droplet
 
-! Perturbation suppression
-do index=1,m
-  if (abs(f_dry_prime(index))*dt < pert_supp * f_dry(index)) then
-    f_dry_prime(index) = 0.D0
-  end if
-end do
 
 end subroutine pbe_ydot_f_dry
 

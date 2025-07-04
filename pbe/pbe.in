@@ -16,12 +16,11 @@ PBE INPUT DATA
 1                               ! Grid type -> grid_type
 200                             ! Number of volume grid points -> m
 1.E-25                          ! Minimum size in grid (m3) (must be >0 for geometric grid) -> grid_lb
-4.E-20                          ! Maximum size in grid (m3) -> grid_rb
+4.E-18                          ! Maximum size in grid (m3) -> grid_rb
 1.                              ! Volume of nuclei -> v0 (obsolete)
 1                               ! Integration method -> solver_pbe
 1.E-3                           ! Allowable rise in dry fraction above 1 or below 0 -> f_dry_tolerance
-0.E-8                           ! Perturbation suppression -> pert_supp
-1.E-4                           ! General Courant number condition (typically =1; lower is better for stability) -> courant_condition
+1.E-3                           ! General Courant number condition (typically =1; lower is better for stability) -> courant_condition
 1.E-6                           ! Tight Courant number condition (used when dry fraction > 0.999) -> courant_condition_tight
 
 

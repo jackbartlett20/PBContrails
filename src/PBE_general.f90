@@ -37,7 +37,8 @@ double precision, allocatable, dimension(:) :: dv
 double precision, allocatable, dimension(:) :: v_m
 double precision, allocatable, dimension(:) :: d_m
 double precision, allocatable, dimension(:) :: nuc
-double precision, allocatable, dimension(:) :: g_array
+double precision, allocatable, dimension(:) :: g_droplet
+double precision, allocatable, dimension(:) :: g_crystal
 
 double precision, allocatable, dimension(:) :: ni_droplet
 double precision, allocatable, dimension(:) :: ni_crystal
@@ -50,7 +51,6 @@ double precision v0,grid_lb,grid_rb
 double precision agg_kernel_const
 double precision break_const
 double precision f_dry_tolerance
-double precision pert_supp
 double precision courant_condition,courant_condition_tight
 
 integer m,grid_type
@@ -65,7 +65,7 @@ double precision temperature,T_exhaust,T_ambient
 double precision P_ambient
 double precision Pvap,Pvap_exhaust,Pvap_ambient
 double precision Psat_l,Psat_i
-double precision supersaturation_l,supersaturation_i
+double precision saturation_l,saturation_i
 double precision air_density
 double precision n_sat
 double precision vapour_thermal_speed
@@ -240,7 +240,6 @@ read(30,*) grid_rb
 read(30,*) v0
 read(30,*) solver_pbe
 read(30,*) f_dry_tolerance
-read(30,*) pert_supp
 read(30,*) courant_condition
 read(30,*) courant_condition_tight
 close(30)
@@ -441,7 +440,7 @@ else if (allocated_size_bytes > 1000) then
 else
   write(*,*) "Allocating around",(allocated_size_bytes)," bytes to arrays."
 end if
-allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),g_array(m))
+allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),g_droplet(0:m),g_crystal(0:m))
 allocate(ni_droplet(m),ni_crystal(m),kappa(m),rho(m),f_dry(m))
 
 ! Calculate grid
@@ -644,8 +643,9 @@ end if
 Psat_l = 6.1121D2*exp((18.678D0 - (temperature-273.15D0)/234.5D0) * ((temperature-273.15D0)/(temperature-16.01D0)))
 Psat_i = 6.1115D2*exp((23.036D0 - (temperature-273.15D0)/333.7D0) * ((temperature-273.15D0)/(temperature+6.67D0)))
 
-supersaturation_l = Pvap/Psat_l - 1.D0
-supersaturation_i = Pvap/Psat_i - 1.D0
+! Saturation ratios
+saturation_l = Pvap/Psat_l
+saturation_i = Pvap/Psat_i
 
 ! Density of air (kg m-3)
 air_density = P_ambient * air_molar_mass / (ideal_gas_constant * temperature)
@@ -680,11 +680,11 @@ end subroutine pbe_set_environment
 
 !**********************************************************************************************
 
-subroutine pbe_update_g_array()
+subroutine pbe_update_g_arrays()
 
 !**********************************************************************************************
 !
-! Update array of growth terms for use in ni_droplet and property PBEs
+! Update arrays of growth terms
 !
 ! By Jack Bartlett (01/07/2025)
 !
@@ -699,21 +699,21 @@ integer index
 
 !----------------------------------------------------------------------------------------------
 
-!g_array(0) = 0.D0
-
 do index=0,m
+  ! Droplets
   r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
   if (index==m) then
-    call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_array(index))
+    call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_droplet(index))
   else
-    call calc_growth_rate_liquid(r, kappa(index+1), rho(index+1), f_dry(index+1), g_array(index))
+    call calc_growth_rate_liquid(r, kappa(index+1), rho(index+1), f_dry(index+1), g_droplet(index))
   end if
+
+  ! Crystals
+  call calc_growth_rate_crystal(index, g_crystal(index))
 end do
 
-!g_array(0) = g_array(1) * v(0)/v(1)
 
-
-end subroutine pbe_update_g_array
+end subroutine pbe_update_g_arrays
 
 !**********************************************************************************************
 
@@ -839,7 +839,7 @@ end subroutine pbe_freezing
 
 !**********************************************************************************************
 
-subroutine pbe_moments(ani,moment,meansize)
+subroutine pbe_moments(ni,moment,meansize)
 
 !**********************************************************************************************
 !
@@ -855,7 +855,7 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m), intent(in)    :: ani
+double precision, dimension(m), intent(in)    :: ni
 double precision, dimension(0:1), intent(out) :: moment
 double precision, intent(out)                 :: meansize
 
@@ -865,17 +865,17 @@ integer i
 
 !----------------------------------------------------------------------------------------------
 
-moment(0) = 0.0
-moment(1) = 0.0
+moment(0) = 0.D0
+moment(1) = 0.D0
 
 do i=1,m
-  moment(0) = moment(0) + ani(i)*dv(i)
-  moment(1) = moment(1) + 0.5D0*(v(i-1)+v(i))*ani(i)*dv(i)
+  moment(0) = moment(0) + ni(i)*dv(i)
+  moment(1) = moment(1) + 0.5D0*(v(i-1)+v(i))*ni(i)*dv(i)
 end do
 
 M1_lp = 0.D0
 do i=m-5,m
-  M1_lp = M1_lp + 0.5D0*(v(i-1)+v(i))*ani(i)*dv(i)
+  M1_lp = M1_lp + 0.5D0*(v(i-1)+v(i))*ni(i)*dv(i)
 end do
 
 !lp = M1_lp/moment(1)
@@ -897,7 +897,7 @@ end subroutine pbe_moments
 
 !**********************************************************************************************
 
-subroutine pbe_output_psd(ani,filename,current_time,first_write)
+subroutine pbe_output_psd(ni,filename,current_time,first_write)
 
 !**********************************************************************************************
 !
@@ -911,7 +911,7 @@ use pbe_mod
 
 implicit none
 
-double precision, dimension(m), intent(in) :: ani
+double precision, dimension(m), intent(in) :: ni
 character(len=30), intent(in) :: filename
 double precision, intent(in) :: current_time
 logical, intent(in) :: first_write
@@ -925,13 +925,13 @@ integer i
 
 !----------------------------------------------------------------------------------------------
 
-call pbe_moments(ani,moment,meansize)
+call pbe_moments(ni,moment,meansize)
 
 do i=1,m
-  if (abs(ani(i))<1.D-16) then
+  if (abs(ni(i))<1.D-16) then
     nitemp(i) = 0.D0
   else
-    nitemp(i) = ani(i)
+    nitemp(i) = ni(i)
   end if
 end do
 
@@ -1073,11 +1073,11 @@ else
   open(99,file='output/growth_rate.out',status='old',position='append')
 end if
 do i=0,m
-  write(99,1004) current_time, v(i), g_array(i)
+  write(99,1004) current_time, v(i), g_droplet(i), g_crystal(i)
 end do
 close(99)
 
-1004 format(3E20.10)
+1004 format(4E20.10)
 
 end subroutine pbe_output_growth
 
@@ -1101,7 +1101,7 @@ subroutine pbe_deallocate()
 
 use pbe_mod
 
-deallocate(v,dv,v_m,d_m,nuc,g_array,ni_droplet,ni_crystal,kappa,rho,f_dry)
+deallocate(v,dv,v_m,d_m,nuc,g_droplet,g_crystal,ni_droplet,ni_crystal,kappa,rho,f_dry)
 
 end subroutine pbe_deallocate
 

@@ -8,11 +8,11 @@
 
 !**********************************************************************************************
 
-subroutine growth_tvd(ni, index, dt, growth_source, integ_success)
+subroutine growth_tvd(ni, index, type, growth_source)
 
 !**********************************************************************************************
 !
-! Growth for finite volume method; used for particles and quantity of kappa
+! Growth for finite volume method; used for droplets, crystals, and quantity of kappa
 !
 ! Stelios Rigopoulos, Fabian Sewerin, Binxuan Sun
 ! Modified by Jack Bartlett
@@ -25,9 +25,8 @@ implicit none
 
 double precision, dimension(m), intent(in) :: ni
 integer, intent(in)                        :: index
-double precision, intent(in)               :: dt ! only for Courant number check
+integer, intent(in)                        :: type ! 0=droplet, 1=crystal
 double precision, intent(out)              :: growth_source
-logical, intent(inout)                     :: integ_success
 
 double precision :: g_terml,g_termr,phi
 double precision :: gnl,gnr           !< (G*N) at left surface and right surface
@@ -44,10 +43,17 @@ parameter(eps = 1.D1*epsilon(1.D0))
 
 !**********************************************************************************************
 
-! Growth rate at right boundary calculation
-g_termr = g_array(index)
-! Growth rate at left boundary calculation
-g_terml = g_array(index-1)
+if (type==0) then
+  ! Growth rate at right boundary
+  g_termr = g_droplet(index)
+  ! Growth rate at left boundary
+  g_terml = g_droplet(index-1)
+else if (type==1) then
+  ! Growth rate at right boundary
+  g_termr = g_crystal(index)
+  ! Growth rate at left boundary
+  g_terml = g_crystal(index-1)
+end if
 
 !----------------------------------------------------------------------------------------------
 !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
@@ -140,7 +146,7 @@ end subroutine growth_tvd
 
 !**********************************************************************************************
 
-subroutine growth_tvd_rho(ni, rho_temp, index, dt, growth_source)
+subroutine growth_tvd_rho(ni, rho_temp, index, growth_source)
 
 !**********************************************************************************************
 !
@@ -157,7 +163,6 @@ implicit none
 double precision, dimension(m), intent(in) :: ni
 double precision, dimension(m), intent(in) :: rho_temp
 integer, intent(in)                        :: index
-double precision, intent(in)               :: dt ! only for Courant number check
 double precision, intent(out)              :: growth_source
 
 double precision :: g_terml,g_termr,phi
@@ -177,9 +182,9 @@ parameter(eps = 1.D1*epsilon(1.D0))
 !**********************************************************************************************
 
 ! Growth rate at right boundary calculation
-g_termr = g_array(index)
+g_termr = g_droplet(index)
 ! Growth rate at left boundary calculation
-g_terml = g_array(index-1)
+g_terml = g_droplet(index-1)
 
 !----------------------------------------------------------------------------------------------
 !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
@@ -313,7 +318,7 @@ end subroutine rho_growth
 
 !**********************************************************************************************
 
-subroutine growth_tvd_f_dry(ni, f_dry_temp, index, dt, growth_source)
+subroutine growth_tvd_f_dry(ni, f_dry_temp, index, growth_source)
 
 !**********************************************************************************************
 !
@@ -330,7 +335,6 @@ implicit none
 double precision, dimension(m), intent(in) :: ni
 double precision, dimension(m), intent(in) :: f_dry_temp
 integer, intent(in)                        :: index
-double precision, intent(in)               :: dt ! only for Courant number check
 double precision, intent(out)              :: growth_source
 
 double precision :: g_terml,g_termr,phi
@@ -350,9 +354,9 @@ parameter(eps = 1.D1*epsilon(1.D0))
 !**********************************************************************************************
 
 ! Growth rate at right boundary calculation
-g_termr = g_array(index)
+g_termr = g_droplet(index)
 ! Growth rate at left boundary calculation
-g_terml = g_array(index-1)
+g_terml = g_droplet(index-1)
 
 !----------------------------------------------------------------------------------------------
 !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
@@ -538,7 +542,7 @@ F_d = (water_density * ideal_gas_constant * temperature) / (Psat_l * diffusivity
 
 F_k = (l_v * water_density)/(k_air_mod * temperature) * (l_v*water_molar_mass/(ideal_gas_constant*temperature) - 1)
 
-g_term = (4*pi*r) * 1/(F_d + F_k) * (Pvap/Psat_l - S_droplet)
+g_term = (4*pi*r) * 1/(F_d + F_k) * (saturation_l - S_droplet)
 
 end subroutine calc_growth_rate_liquid
 
@@ -548,7 +552,7 @@ end subroutine calc_growth_rate_liquid
 
 !**********************************************************************************************
 
-subroutine calc_growth_rate_crystal(index, supersaturation, g_term)
+subroutine calc_growth_rate_crystal(index, g_term)
 
 !**********************************************************************************************
 !
@@ -563,7 +567,6 @@ use pbe_mod
 implicit none
 
 integer, intent(in) :: index
-double precision, intent(in) :: supersaturation ! either wrt liquid or wrt ice
 double precision, intent(out) :: g_term
 
 double precision r, J
@@ -572,7 +575,7 @@ double precision r, J
 
 r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0) ! Find radius of indexed boundary
 
-call calc_J(r, supersaturation, J)
+call calc_J(r, J)
 
 g_term = water_molecular_vol * J
 
@@ -584,11 +587,11 @@ end subroutine calc_growth_rate_crystal
 
 !**********************************************************************************************
 
-subroutine calc_J(r, supersaturation, J)
+subroutine calc_J(r, J)
 
 !**********************************************************************************************
 !
-! Calculates J (flux of water molecules to droplets/crystals of size r)
+! Calculates J (flux of water molecules to crystals of size r) from Kärcher 2015
 !
 ! By Jack Bartlett (28/05/2025)
 !
@@ -599,7 +602,6 @@ use pbe_mod
 implicit none
 
 double precision, intent(in) :: r
-double precision, intent(in) :: supersaturation ! either wrt liquid or wrt ice
 double precision, intent(out) :: J
 
 double precision accom_coeff, correction_factor
@@ -610,7 +612,7 @@ accom_coeff = 1.D0
 
 correction_factor = 1 + accom_coeff * vapour_thermal_speed * r / (4.D0 * diffusivity)
 
-J = (pi * r**2 * accom_coeff * vapour_thermal_speed * supersaturation * n_sat) / correction_factor
+J = (pi*r**2 * accom_coeff * vapour_thermal_speed * (saturation_i-1.D0) * n_sat) / correction_factor
 
 end subroutine calc_J
 
@@ -638,7 +640,7 @@ double precision, intent(in)               :: r
 double precision, intent(in)               :: kappa_i
 double precision, intent(out)              :: f_dry_eq
 
-double precision surf_tens, kelvin_term, S
+double precision surf_tens, kelvin_term
 
 !----------------------------------------------------------------------------------------------
 
@@ -646,9 +648,7 @@ surf_tens = 72.8D-3 ! Update!
 
 kelvin_term = exp((2.D0 * surf_tens * water_molar_mass)/(ideal_gas_constant*temperature*water_density*r))
 
-S = Pvap/Psat_l
-
-f_dry_eq = (1 - kelvin_term/S) / (1 - kappa_i - kelvin_term/S)
+f_dry_eq = (1 - kelvin_term/saturation_l) / (1 - kappa_i - kelvin_term/saturation_l)
 
 end subroutine calc_f_dry_equ
 
@@ -687,22 +687,30 @@ dt_sugg = dt
 
 if (maxval(f_dry) > 0.999D0) then
   do i=1,m
-    courant = max(abs(g_array(i-1)), abs(g_array(i))) * dt / dv(i)
-    if (courant>courant_condition_tight) then
-      !write(*,*) "Courant number of ",courant," detected at index ",i,"."
-      courant_success = .false.
-      dt_sugg = dt / (1.01D0 * courant / courant_condition_tight)
-      exit
+    if (ni_droplet(i).eq.0.D0) then ! Don't bother if there are no droplets there
+      cycle
+    else
+      courant = max(abs(g_droplet(i-1)), abs(g_droplet(i))) * dt / dv(i)
+      if (courant>courant_condition_tight) then
+        !write(*,*) "Courant number of ",courant," detected at index ",i,"."
+        courant_success = .false.
+        dt_sugg = dt / (1.01D0 * courant / courant_condition_tight)
+        exit
+      end if
     end if
   end do
 else
   do i=1,m
-    courant = max(abs(g_array(i-1)), abs(g_array(i))) * dt / dv(i)
-    if (courant>courant_condition) then
-      !write(*,*) "Courant number of ",courant," detected at index ",i,"."
-      courant_success = .false.
-      dt_sugg = dt / (1.01D0 * courant / courant_condition)
-      exit
+    if (ni_droplet(i).eq.0.D0) then ! Don't bother if there are no droplets there
+      cycle
+    else
+      courant = max(abs(g_droplet(i-1)), abs(g_droplet(i))) * dt / dv(i)
+      if (courant>courant_condition) then
+        !write(*,*) "Courant number of ",courant," detected at index ",i,"."
+        courant_success = .false.
+        dt_sugg = dt / (1.01D0 * courant / courant_condition)
+        exit
+      end if
     end if
   end do
 end if

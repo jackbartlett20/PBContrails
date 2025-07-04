@@ -100,10 +100,8 @@ do
     call PBE_agg_beta(2)
   end if
 
-  !call calc_f_dry_equ((3*v(0)/(4*pi))**(1.D0/3.D0), kappa(1), f_dry(1))
-
   ! Update the array of growth terms
-  call pbe_update_g_array()
+  call pbe_update_g_arrays()
 
   ! Check Courant number condition
   call courant_check(dt, courant_success, dt_sugg)
