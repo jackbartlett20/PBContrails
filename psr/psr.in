@@ -1,9 +1,9 @@
 PSR INPUT DATA
 
 1.E1                            ! Integration time (s) -> int_time
-1.E-7                           ! Default time step (s) -> dt_req
+1.E-6                           ! Default time step (s) -> dt_req
 1                               ! Variable time step (on/off) -> variable_dt
-1.E-24                          ! Minimum allowable time step (s) -> dt_min
+1.E-25                          ! Minimum allowable time step (s) -> dt_min
 10000                            ! Number of write ups (split evenly across integration time) -> total_writes
 1                               ! Write growth rate (on/off) -> output_growth
 0                               ! Kernel update on/off -> agg_kernel_update

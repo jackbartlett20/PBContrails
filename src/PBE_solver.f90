@@ -58,12 +58,13 @@ end if
 
 
 if (integ_success) then
- ! Change everything else
-
+  ! Change everything else
+  
   do index=1,m
     if ((f_dry(index)>1.D0).and.(f_dry(index)<1.D0+f_dry_tolerance)) then
-    !  write(*,*) "WARNING: Found f_dry = ",f_dry(index)," at index ",index,". Continuing."
       f_dry(index) = 1.D0
+    else if ((f_dry(index)<0.D0).and.(f_dry(index)>-f_dry_tolerance)) then
+      f_dry(index) = 0.D0
     end if
   end do
 
@@ -74,10 +75,9 @@ if (integ_success) then
     g_term = 0.5D0 * (g_array(index-1) + g_array(index))
     sum_gn = sum_gn + g_term*ni_droplet(index)*dv(index)
   end do
-  Pvap = Pvap + (boltzmann_constant * temperature * (sum_gn / water_molecular_vol)) * dt
+  Pvap = Pvap + (boltzmann_constant * temperature * (-sum_gn / water_molecular_vol)) * dt
 
 end if
-
 
 
 end subroutine pbe_integ
@@ -106,6 +106,7 @@ double precision, intent(in) :: dt
 logical, intent(inout) :: integ_success
 
 double precision ni_droplet_prime(m),kappa_prime(m),rho_prime(m),f_dry_prime(m)
+integer index
 
 !----------------------------------------------------------------------------------------------
 
@@ -115,7 +116,11 @@ call pbe_ydot_kappa(kappa,ni_droplet_prime,kappa_prime,dt,integ_success)
 
 call pbe_ydot_rho(rho,ni_droplet_prime,rho_prime,dt)
 
-call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime,dt)
+!call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime,dt)
+
+do index=1,m
+  f_dry_prime(index) = -f_dry(index) * 0.5D0*(g_array(index-1)+g_array(index)) / v_m(index)
+end do
 
 call check_valid_properties(dt,kappa_prime,rho_prime,f_dry_prime,integ_success)
 
@@ -271,7 +276,7 @@ do i=1,m
     write(*,*) "ERROR: Found rho = ",(rho(i)+rho_prime(i)*dt)," at index ",i
     integ_success = .false.
     exit
-  else if ((f_dry(i)+f_dry_prime(i)*dt)<0.D0) then
+  else if ((f_dry(i)+f_dry_prime(i)*dt)<-f_dry_tolerance) then
     write(*,*) "ERROR: Found f_dry = ",(f_dry(i)+f_dry_prime(i)*dt)," at index ",i
     integ_success = .false.
     exit

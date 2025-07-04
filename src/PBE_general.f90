@@ -51,7 +51,7 @@ double precision agg_kernel_const
 double precision break_const
 double precision f_dry_tolerance
 double precision pert_supp
-double precision courant_condition
+double precision courant_condition,courant_condition_tight
 
 integer m,grid_type
 integer i_gm
@@ -84,6 +84,10 @@ integer, parameter :: dp = selected_real_kind(15, 307)
 
 ! Mathematical constants
 real(kind=dp), parameter :: pi = 3.141592654D0
+real(kind=dp), parameter, dimension(-2:2) :: &
+    & savgol_coeffs = (/ -3.D0/35.D0, 12.D0/35.D0, 17.D0/35.D0, 12.D0/35.D0, -3.D0/35.D0 /)
+real(kind=dp), parameter :: savgol_m1f = sum(savgol_coeffs(-1:))
+real(kind=dp), parameter :: savgol_m2f = sum(savgol_coeffs(0:))
 
 ! Physical constants
 real(kind=dp), parameter :: ideal_gas_constant = 8.314D0 ! (J mol-1 K-1)
@@ -238,6 +242,7 @@ read(30,*) solver_pbe
 read(30,*) f_dry_tolerance
 read(30,*) pert_supp
 read(30,*) courant_condition
+read(30,*) courant_condition_tight
 close(30)
 
 
@@ -690,10 +695,11 @@ use pbe_mod
 implicit none
 
 double precision r
-
 integer index
 
 !----------------------------------------------------------------------------------------------
+
+!g_array(0) = 0.D0
 
 do index=0,m
   r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
@@ -704,8 +710,87 @@ do index=0,m
   end if
 end do
 
+!g_array(0) = g_array(1) * v(0)/v(1)
+
 
 end subroutine pbe_update_g_array
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine pbe_smooth_props()
+
+!**********************************************************************************************
+!
+! Smooth property arrays to avoid numerical errors
+!
+! By Jack Bartlett (03/07/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision kappa_smooth(m),rho_smooth(m),f_dry_smooth(m)
+double precision sum_savgol
+integer i, j
+
+!----------------------------------------------------------------------------------------------
+
+! Hygroscopicity
+kappa_smooth(1) = kappa(1)
+kappa_smooth(2) = kappa(2)
+kappa_smooth(m) = kappa(m)
+kappa_smooth(m-1) = kappa(m-1)
+
+do i=3,m-2
+  sum_savgol = 0.D0
+  do j=-2,2
+    sum_savgol = sum_savgol + savgol_coeffs(j) * kappa(i+j)
+  end do
+  kappa_smooth(i) = sum_savgol
+end do
+
+kappa = kappa_smooth
+
+! Density
+rho_smooth(1) = rho(1)
+rho_smooth(2) = rho(2)
+rho_smooth(m) = rho(m)
+rho_smooth(m-1) = rho(m-1)
+
+do i=3,m-2
+  sum_savgol = 0.D0
+  do j=-2,2
+    sum_savgol = sum_savgol + savgol_coeffs(j) * rho(i+j)
+  end do
+  rho_smooth(i) = sum_savgol
+end do
+
+rho = rho_smooth
+
+! Dry fraction
+f_dry_smooth(1) = f_dry(1)
+f_dry_smooth(2) = f_dry(2)
+f_dry_smooth(m) = f_dry(m)
+f_dry_smooth(m-1) = f_dry(m-1)
+
+do i=3,m-2
+  sum_savgol = 0.D0
+  do j=-2,2
+    sum_savgol = sum_savgol + savgol_coeffs(j) * f_dry(i+j)
+  end do
+  f_dry_smooth(i) = sum_savgol
+end do
+
+f_dry = f_dry_smooth
+
+
+end subroutine pbe_smooth_props
 
 !**********************************************************************************************
 

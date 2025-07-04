@@ -620,7 +620,45 @@ end subroutine calc_J
 
 !**********************************************************************************************
 
-subroutine courant_check(dt, integ_success)
+subroutine calc_f_dry_equ(r, kappa_i, f_dry_eq)
+
+!**********************************************************************************************
+!
+! Calculates dry fraction in equilibrium
+!
+! By Jack Bartlett (02/07/2025)
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, intent(in)               :: r
+double precision, intent(in)               :: kappa_i
+double precision, intent(out)              :: f_dry_eq
+
+double precision surf_tens, kelvin_term, S
+
+!----------------------------------------------------------------------------------------------
+
+surf_tens = 72.8D-3 ! Update!
+
+kelvin_term = exp((2.D0 * surf_tens * water_molar_mass)/(ideal_gas_constant*temperature*water_density*r))
+
+S = Pvap/Psat_l
+
+f_dry_eq = (1 - kelvin_term/S) / (1 - kappa_i - kelvin_term/S)
+
+end subroutine calc_f_dry_equ
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
+subroutine courant_check(dt, courant_success, dt_sugg)
 
 !**********************************************************************************************
 !
@@ -635,24 +673,39 @@ use pbe_mod
 
 implicit none
 
-double precision, intent(in) :: dt
-logical, intent(out)         :: integ_success
+double precision, intent(in)  :: dt
+logical, intent(out)          :: courant_success
+double precision, intent(out) :: dt_sugg
 
 double precision courant
 integer i
 
 !----------------------------------------------------------------------------------------------
 
-integ_success = .true.
+courant_success = .true.
+dt_sugg = dt
 
-do i=1,m
-  courant = max(abs(g_array(i-1)), abs(g_array(i))) * dt / dv(i)
-  if (courant>courant_condition) then
-    write(*,*) "Courant number of ",courant," detected at index ",i,"."
-    integ_success = .false.
-    exit
-  end if
-end do
+if (maxval(f_dry) > 0.999D0) then
+  do i=1,m
+    courant = max(abs(g_array(i-1)), abs(g_array(i))) * dt / dv(i)
+    if (courant>courant_condition_tight) then
+      !write(*,*) "Courant number of ",courant," detected at index ",i,"."
+      courant_success = .false.
+      dt_sugg = dt / (1.01D0 * courant / courant_condition_tight)
+      exit
+    end if
+  end do
+else
+  do i=1,m
+    courant = max(abs(g_array(i-1)), abs(g_array(i))) * dt / dv(i)
+    if (courant>courant_condition) then
+      !write(*,*) "Courant number of ",courant," detected at index ",i,"."
+      courant_success = .false.
+      dt_sugg = dt / (1.01D0 * courant / courant_condition)
+      exit
+    end if
+  end do
+end if
 
 end subroutine courant_check
 

@@ -14,11 +14,11 @@ use pbe_mod
 
 implicit none
 
-double precision int_time,tin,current_time,meansize,dt_req,dt_min,dt
+double precision int_time,tin,current_time,meansize,dt_req,dt_min,dt,dt_sugg
 
 integer i,i_step,iflag,flowflag,nin,i_write,total_writes,output_growth
 double precision write_interval, next_write_time
-logical first_write, integ_success
+logical first_write, courant_success, integ_success
 integer variable_dt,agg_kernel_update
 
 character(len=30) filename
@@ -53,6 +53,7 @@ next_write_time = write_interval
 current_time = 0.D0
 first_write = .true.
 integ_success = .true.
+courant_success = .true.
 
 !----------------------------------------------------------------------------------------------
 
@@ -65,20 +66,22 @@ do
 
   ! Determine dt
   if (variable_dt.eq.1) then
-    if (integ_success) then
+    if ((courant_success).and.(integ_success)) then
       dt = dt_req
     else
-      if (dt.le.(1.1*dt_min)) then
+      if (dt.le.(1.01*dt_min)) then
         write(*,*) "Reached minimum allowable dt at t = ",current_time
         stop
+      else if (.not.courant_success) then
+        dt = max(dt_sugg, dt_min)
       else
         dt = max(dt/1.D1, dt_min)
-        write(*,*) "Integration step failed at t = ",current_time
-        write(*,*) "Trying dt = ",dt
       end if
+      !write(*,*) "Integration step failed at t = ",current_time
+      !write(*,*) "Trying dt = ",dt
     end if
   else
-    if (.not.integ_success) then
+    if ((.not.courant_success).or.(.not.integ_success)) then
       write(*,*) "Integration step failed at t = ",current_time
       stop
     end if
@@ -97,13 +100,15 @@ do
     call PBE_agg_beta(2)
   end if
 
+  !call calc_f_dry_equ((3*v(0)/(4*pi))**(1.D0/3.D0), kappa(1), f_dry(1))
+
   ! Update the array of growth terms
   call pbe_update_g_array()
 
   ! Check Courant number condition
-  call courant_check(dt, integ_success)
+  call courant_check(dt, courant_success, dt_sugg)
 
-  if (.not.integ_success) then
+  if (.not.courant_success) then
     current_time = current_time - dt
     cycle ! returns to start of do loop
   end if
@@ -115,6 +120,9 @@ do
     current_time = current_time - dt
     cycle ! returns to start of do loop
   end if
+
+  ! Dry fraction smoothing
+  call pbe_smooth_props()
 
   ! Update volume of water in droplets
 
