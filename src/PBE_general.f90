@@ -820,12 +820,14 @@ integer index
 
 !----------------------------------------------------------------------------------------------
 
+! Add Koop 2000 freezing rate based on water activity
+
 ! Ice germ rate is number of ice germs formed per droplet vol per second
 ice_germ_rate = 1.D6 * exp(-3.5714D0 * temperature + 858.719D0)
 
 do index=1,m
   ! Condition to have >= 1 ice germ per droplet
-  if ((ice_germ_rate * v_m(index) * dt).ge.(1.D0)) then
+  if ((ice_germ_rate * v_m(index) * (1.D0 - f_dry(index)) * dt).ge.(1.D0)) then
     ni_crystal(index) = ni_crystal(index) + ni_droplet(index)
     ni_droplet(index) = 0.D0
   end if
