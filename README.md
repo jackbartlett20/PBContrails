@@ -35,8 +35,9 @@ Runge-Kutta 2nd and 4th order integration is implemented (but needs updating). O
 # Acknowledgements
 
 With thanks to the authors of CPMOD:
-Stelios Rigopoulos
-Fabian Sewerin
-Anxiong Liu
-Binxuan Sun
+
+Stelios Rigopoulos\
+Fabian Sewerin\
+Anxiong Liu\
+Binxuan Sun\
 Daniel O’Sullivan
