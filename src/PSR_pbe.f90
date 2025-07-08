@@ -119,8 +119,10 @@ do
     cycle ! returns to start of do loop
   end if
 
-  ! Dry fraction smoothing
-  call pbe_smooth_props()
+  ! Property smoothing
+  if (do_smoothing == 1) then
+    call pbe_smooth_props()
+  end if
 
   ! Update volume of water in droplets
 

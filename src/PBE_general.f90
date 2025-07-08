@@ -46,6 +46,8 @@ double precision, allocatable, dimension(:) :: kappa
 double precision, allocatable, dimension(:) :: rho
 double precision, allocatable, dimension(:) :: f_dry
 
+double precision, allocatable, dimension(:) :: savgol_coeffs
+
 
 double precision v0,grid_lb,grid_rb
 double precision agg_kernel_const
@@ -59,6 +61,7 @@ integer agg_kernel
 integer growth_function
 integer order_of_gq
 integer solver_pbe
+integer do_smoothing, smoothing_window, half_sm_win
 
 ! Environment variables
 double precision temperature,T_exhaust,T_ambient
@@ -86,9 +89,15 @@ integer, parameter :: dp = selected_real_kind(15, 307)
 ! Mathematical constants
 real(kind=dp), parameter :: pi = 3.141592654D0
 real(kind=dp), parameter, dimension(-2:2) :: &
-    & savgol_coeffs = (/ -3.D0/35.D0, 12.D0/35.D0, 17.D0/35.D0, 12.D0/35.D0, -3.D0/35.D0 /)
-real(kind=dp), parameter :: savgol_m1f = sum(savgol_coeffs(-1:))
-real(kind=dp), parameter :: savgol_m2f = sum(savgol_coeffs(0:))
+    & savgol_coeffs_5 = (/ -3.D0/35.D0, 12.D0/35.D0, 17.D0/35.D0, 12.D0/35.D0, -3.D0/35.D0 /)
+real(kind=dp), parameter, dimension(-3:3) :: &
+    & savgol_coeffs_7 = 1.D0/21.D0 * (/ -2.D0, 3.D0, 6.D0, 7.D0, 6.D0, 3.D0, -2.D0 /)
+real(kind=dp), parameter, dimension(-4:4) :: &
+    & savgol_coeffs_9 = 1.D0/231.D0 * (/ -21.D0, 14.D0, 39.D0, 54.D0, 59.D0, 54.D0, 39.D0, 14.D0, -21.D0 /)
+real(kind=dp), parameter, dimension(-5:5) :: &
+    & savgol_coeffs_11 = 1.D0/429.D0 * (/ -36.D0, 9.D0, 44.D0, 69.D0, 84.D0, 89.D0, 84.D0, 69.D0, 44.D0, 9.D0, -36.D0 /)
+!real(kind=dp), parameter :: savgol_m1f = sum(savgol_coeffs(-1:))
+!real(kind=dp), parameter :: savgol_m2f = sum(savgol_coeffs(0:))
 
 ! Physical constants
 real(kind=dp), parameter :: ideal_gas_constant = 8.314D0 ! (J mol-1 K-1)
@@ -243,6 +252,8 @@ read(30,*) solver_pbe
 read(30,*) f_dry_tolerance
 read(30,*) courant_condition
 read(30,*) courant_condition_tight
+read(30,*) do_smoothing
+read(30,*) smoothing_window
 close(30)
 
 
@@ -304,6 +315,20 @@ if (break_const>0.) then
   call pbe_breakage_calc(2)
 end if
 
+half_sm_win = (smoothing_window-1)/2
+allocate(savgol_coeffs(-half_sm_win:half_sm_win))
+if (smoothing_window == 5) then
+  savgol_coeffs = savgol_coeffs_5
+else if (smoothing_window == 7) then
+  savgol_coeffs = savgol_coeffs_7
+else if (smoothing_window == 9) then
+  savgol_coeffs = savgol_coeffs_7
+else if (smoothing_window == 11) then
+  savgol_coeffs = savgol_coeffs_11
+else
+  write(*,*) "Smoothing window of size ",smoothing_window," not accepted. Stopping."
+  stop
+end if
 
 end subroutine pbe_init
 
@@ -746,14 +771,15 @@ integer i, j
 !----------------------------------------------------------------------------------------------
 
 ! Hygroscopicity
-kappa_smooth(1) = kappa(1)
-kappa_smooth(2) = kappa(2)
-kappa_smooth(m) = kappa(m)
-kappa_smooth(m-1) = kappa(m-1)
 
-do i=3,m-2
+do i=1,half_sm_win
+  kappa_smooth(i) = kappa(i)
+  kappa_smooth(m+1-i) = kappa(m+1-i)
+end do
+
+do i=half_sm_win+1,m-half_sm_win
   sum_savgol = 0.D0
-  do j=-2,2
+  do j=-half_sm_win,half_sm_win
     sum_savgol = sum_savgol + savgol_coeffs(j) * kappa(i+j)
   end do
   kappa_smooth(i) = sum_savgol
@@ -761,15 +787,17 @@ end do
 
 kappa = kappa_smooth
 
-! Density
-rho_smooth(1) = rho(1)
-rho_smooth(2) = rho(2)
-rho_smooth(m) = rho(m)
-rho_smooth(m-1) = rho(m-1)
 
-do i=3,m-2
+! Density
+
+do i=1,half_sm_win
+  rho_smooth(i) = rho(i)
+  rho_smooth(m+1-i) = rho(m+1-i)
+end do
+
+do i=half_sm_win+1,m-half_sm_win
   sum_savgol = 0.D0
-  do j=-2,2
+  do j=-half_sm_win,half_sm_win
     sum_savgol = sum_savgol + savgol_coeffs(j) * rho(i+j)
   end do
   rho_smooth(i) = sum_savgol
@@ -777,15 +805,17 @@ end do
 
 rho = rho_smooth
 
-! Dry fraction
-f_dry_smooth(1) = f_dry(1)
-f_dry_smooth(2) = f_dry(2)
-f_dry_smooth(m) = f_dry(m)
-f_dry_smooth(m-1) = f_dry(m-1)
 
-do i=3,m-2
+! Dry fraction
+
+do i=1,half_sm_win
+  f_dry_smooth(i) = f_dry(i)
+  f_dry_smooth(m+1-i) = f_dry(m+1-i)
+end do
+
+do i=half_sm_win+1,m-half_sm_win
   sum_savgol = 0.D0
-  do j=-2,2
+  do j=-half_sm_win,half_sm_win
     sum_savgol = sum_savgol + savgol_coeffs(j) * f_dry(i+j)
   end do
   f_dry_smooth(i) = sum_savgol
@@ -1108,6 +1138,7 @@ subroutine pbe_deallocate()
 use pbe_mod
 
 deallocate(v,dv,v_m,d_m,nuc,g_droplet,g_crystal,ni_droplet,ni_crystal,kappa,rho,f_dry)
+deallocate(savgol_coeffs)
 
 end subroutine pbe_deallocate
 

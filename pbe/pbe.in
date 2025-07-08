@@ -22,6 +22,8 @@ PBE INPUT DATA
 1.E-3                           ! Allowable rise in dry fraction above 1 or below 0 -> f_dry_tolerance
 1.E-3                           ! General Courant number condition (typically =1; lower is better for stability) -> courant_condition
 1.E-6                           ! Tight Courant number condition (used when dry fraction > 0.999) -> courant_condition_tight
+1                               ! Do smoothing (on/off) -> do_smoothing
+11                               ! Smoothing window (options are 5, 7, 9, or 11) -> smoothing_window
 
 
 Aggregation kernels:
