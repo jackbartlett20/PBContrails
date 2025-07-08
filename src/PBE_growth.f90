@@ -510,14 +510,13 @@ double precision, intent(in)               :: rho_i
 double precision, intent(in)               :: f_dry_i
 double precision, intent(out)              :: g_term
 
-double precision surf_tens, accom_coeff
+double precision accom_coeff
 double precision raoult_term, kelvin_term, S_droplet
 double precision diffusivity_mod, k_air_mod
 double precision F_d, F_k
 
 !----------------------------------------------------------------------------------------------
 
-surf_tens = 72.8D-3 ! Update!
 accom_coeff = 1.D0
 
 if (kappa_i.eq.0.D0) then
@@ -526,7 +525,7 @@ else
   raoult_term = (1.D0 - f_dry_i)/(1.D0 - (1.D0 - kappa_i)*f_dry_i)
 end if
 
-kelvin_term = exp((2.D0 * surf_tens * water_molar_mass)/(ideal_gas_constant*temperature*water_density*r))
+kelvin_term = exp((2.D0 * sigma_water * water_molar_mass)/(ideal_gas_constant*temperature*water_density*r))
 
 S_droplet = raoult_term * kelvin_term
 
@@ -640,13 +639,11 @@ double precision, intent(in)               :: r
 double precision, intent(in)               :: kappa_i
 double precision, intent(out)              :: f_dry_eq
 
-double precision surf_tens, kelvin_term
+double precision kelvin_term
 
 !----------------------------------------------------------------------------------------------
 
-surf_tens = 72.8D-3 ! Update!
-
-kelvin_term = exp((2.D0 * surf_tens * water_molar_mass)/(ideal_gas_constant*temperature*water_density*r))
+kelvin_term = exp((2.D0 * sigma_water * water_molar_mass)/(ideal_gas_constant*temperature*water_density*r))
 
 f_dry_eq = (1 - kelvin_term/saturation_l) / (1 - kappa_i - kelvin_term/saturation_l)
 

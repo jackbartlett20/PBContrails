@@ -72,6 +72,7 @@ double precision vapour_thermal_speed
 double precision diffusivity, k_air
 double precision mfp_air
 double precision l_v
+double precision sigma_water
 
 ! Plume diffusion constants
 double precision r_0,u_0,eps_diffusivity
@@ -622,7 +623,7 @@ if (current_time.eq.0.D0) then
 ! Updating
 else
 
-  if (current_time.LE.tau_m) then
+  if (current_time.le.tau_m) then
     dilution_factor = 1.D0
   else
     dilution_factor = (tau_m / current_time)**(0.9D0)
@@ -639,7 +640,7 @@ else
 
 end if
 
-! Buck equations
+! Saturation vapour pressures - Buck
 Psat_l = 6.1121D2*exp((18.678D0 - (temperature-273.15D0)/234.5D0) * ((temperature-273.15D0)/(temperature-16.01D0)))
 Psat_i = 6.1115D2*exp((23.036D0 - (temperature-273.15D0)/333.7D0) * ((temperature-273.15D0)/(temperature+6.67D0)))
 
@@ -658,6 +659,9 @@ mfp_air = (boltzmann_constant*temperature)/(sqrt(2*pi)*(0.37D-9)**2*P_ambient)
 
 ! H2O number concentration at water saturation (m-3)
 n_sat = avogadro_constant * Pvap / (ideal_gas_constant * temperature)
+
+! Water surface tension (N m-1) - IAPWS
+sigma_water = 235.8D-3 * (1-temperature/647.096D0)**(1.256D0) * (1.D0 - 0.625D0*(1-temperature/647.096D0))
 
 ! Thermal speed of water vapour (m s-1)
 vapour_thermal_speed = sqrt(8 * boltzmann_constant * temperature / (pi*water_molecular_mass))
