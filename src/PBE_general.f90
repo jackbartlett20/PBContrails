@@ -87,7 +87,7 @@ double precision tau_m ! mixing timescale (s)
 integer, parameter :: dp = selected_real_kind(15, 307)
 
 ! Mathematical constants
-real(kind=dp), parameter :: pi = 3.141592654D0
+real(kind=dp), parameter :: pi = 3.14159265358979D0
 real(kind=dp), parameter, dimension(-2:2) :: &
     & savgol_coeffs_5 = (/ -3.D0/35.D0, 12.D0/35.D0, 17.D0/35.D0, 12.D0/35.D0, -3.D0/35.D0 /)
 real(kind=dp), parameter, dimension(-3:3) :: &
@@ -96,8 +96,6 @@ real(kind=dp), parameter, dimension(-4:4) :: &
     & savgol_coeffs_9 = 1.D0/231.D0 * (/ -21.D0, 14.D0, 39.D0, 54.D0, 59.D0, 54.D0, 39.D0, 14.D0, -21.D0 /)
 real(kind=dp), parameter, dimension(-5:5) :: &
     & savgol_coeffs_11 = 1.D0/429.D0 * (/ -36.D0, 9.D0, 44.D0, 69.D0, 84.D0, 89.D0, 84.D0, 69.D0, 44.D0, 9.D0, -36.D0 /)
-!real(kind=dp), parameter :: savgol_m1f = sum(savgol_coeffs(-1:))
-!real(kind=dp), parameter :: savgol_m2f = sum(savgol_coeffs(0:))
 
 ! Physical constants
 real(kind=dp), parameter :: ideal_gas_constant = 8.314D0 ! (J mol-1 K-1)
@@ -293,6 +291,9 @@ call pbe_set_environment(0.D0)
 
 ni_droplet = 0.D0
 ni_crystal = 0.D0
+kappa = 0.D0
+rho = 0.D0
+f_dry = 0.D0
 
 call pbe_read_species()
 
@@ -352,7 +353,7 @@ use pbe_mod
 
 implicit none
 
-double precision r_m, n
+double precision r_m, dlogr, n
 double precision n_tot, r_mean, sigma, kappa_i, rho_i, f_dry_i
 integer i, num_species
 
@@ -393,8 +394,9 @@ do
   ! Add species to number density array
   do i=1,m
     r_m = d_m(i)/2.D0
+    dlogr = 1.D0/3.D0 * log(v(i)/v(i-1))
     ! Particle number density per interval width to be added
-    n = 1.D0/(dv(i)) * n_tot * (1.D0/(sqrt(2.D0*pi)*sigma)) * exp(-(log(r_m/r_mean))**2.D0/(2.D0*sigma**2.D0))
+    n = 1.D0/(dv(i)) * n_tot * dlogr * (1.D0/(sqrt(2.D0*pi)*sigma)) * exp(-(log(r_m/r_mean))**2.D0/(2.D0*sigma**2.D0))
 
     ! Update average properties in interval
     kappa(i) = (kappa(i)*ni_droplet(i) + kappa_i*n) / (ni_droplet(i) + n)
