@@ -39,6 +39,7 @@ double precision, allocatable, dimension(:) :: d_m
 double precision, allocatable, dimension(:) :: nuc
 double precision, allocatable, dimension(:) :: g_droplet
 double precision, allocatable, dimension(:) :: g_crystal
+double precision, allocatable, dimension(:) :: f_droplet
 
 double precision, allocatable, dimension(:) :: ni_droplet
 double precision, allocatable, dimension(:) :: ni_crystal
@@ -291,9 +292,6 @@ call pbe_set_environment(0.D0)
 
 ni_droplet = 0.D0
 ni_crystal = 0.D0
-kappa = 0.D0
-rho = 0.D0
-f_dry = 0.D0
 
 call pbe_read_species()
 
@@ -468,7 +466,7 @@ else if (allocated_size_bytes > 1000) then
 else
   write(*,*) "Allocating around",(allocated_size_bytes)," bytes to arrays."
 end if
-allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),g_droplet(0:m),g_crystal(0:m))
+allocate(v(0:m),dv(m),v_m(m),d_m(m),nuc(m),g_droplet(0:m),g_crystal(0:m),f_droplet(0:m))
 allocate(ni_droplet(m),ni_crystal(m),kappa(m),rho(m),f_dry(m))
 
 ! Calculate grid
@@ -774,20 +772,20 @@ integer i, j
 
 ! Hygroscopicity
 
-do i=1,half_sm_win
-  kappa_smooth(i) = kappa(i)
-  kappa_smooth(m+1-i) = kappa(m+1-i)
-end do
+!do i=1,half_sm_win
+!  kappa_smooth(i) = kappa(i)
+!  kappa_smooth(m+1-i) = kappa(m+1-i)
+!end do
 
-do i=half_sm_win+1,m-half_sm_win
-  sum_savgol = 0.D0
-  do j=-half_sm_win,half_sm_win
-    sum_savgol = sum_savgol + savgol_coeffs(j) * kappa(i+j)
-  end do
-  kappa_smooth(i) = sum_savgol
-end do
+!do i=half_sm_win+1,m-half_sm_win
+!  sum_savgol = 0.D0
+!  do j=-half_sm_win,half_sm_win
+!    sum_savgol = sum_savgol + savgol_coeffs(j) * kappa(i+j)
+!  end do
+!  kappa_smooth(i) = sum_savgol
+!end do
 
-kappa = kappa_smooth
+!kappa = kappa_smooth
 
 
 ! Density
@@ -1139,7 +1137,7 @@ subroutine pbe_deallocate()
 
 use pbe_mod
 
-deallocate(v,dv,v_m,d_m,nuc,g_droplet,g_crystal,ni_droplet,ni_crystal,kappa,rho,f_dry)
+deallocate(v,dv,v_m,d_m,nuc,g_droplet,g_crystal,f_droplet,ni_droplet,ni_crystal,kappa,rho,f_dry)
 deallocate(savgol_coeffs)
 
 end subroutine pbe_deallocate

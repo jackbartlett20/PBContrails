@@ -8,6 +8,103 @@
 
 !**********************************************************************************************
 
+subroutine flux_tvd(ni, type)
+
+!**********************************************************************************************
+!
+! Updates droplet flux array (f_droplet)
+!
+! By Jack Bartlett
+! Based on the work of Stelios Rigopoulos, Fabian Sewerin, Binxuan Sun
+!
+!**********************************************************************************************
+
+use pbe_mod
+
+implicit none
+
+double precision, dimension(m), intent(in) :: ni
+integer, intent(in)                        :: type ! 0=droplet, 1=crystal
+
+double precision :: g_term,phi
+double precision :: gn                !< (G*N) at surface
+double precision :: nl                !< Number density in left cell
+double precision :: nc                !< Number density in this cell
+double precision :: nr                !< Number density in right cell
+double precision :: eps               !< Tolerance for upwind ratio (avoids div by zero)
+double precision :: rl,rr             !< r+ at left and right surface
+double precision :: r                 !< Radius at boundary
+
+integer index
+
+parameter(eps = 1.D1*epsilon(1.D0))
+
+!**********************************************************************************************
+
+do index=0,m
+
+  if (type==0) then
+    ! Growth rate at right boundary
+    g_term = g_droplet(index)
+  else if (type==1) then
+    ! Growth rate at right boundary
+    g_term = g_crystal(index)
+  end if
+
+  !----------------------------------------------------------------------------------------------
+  !TVD scheme ref: S.Qamar et al 2006: A comparative study of high resolution schemes for solving
+  !                population balances in crystallization
+  !----------------------------------------------------------------------------------------------
+
+  if (g_term>0.D0) then
+    ! growth rate at boundary is in positive direction
+    
+    if (index==0) then
+      gn = 0.D0
+    else if (index==1) then
+      gn = g_term * 0.5 * (ni(1)+ni(2))
+    else if (index==m) then
+      gn = g_term * (ni(m) + 0.5*(ni(m) - ni(m-1)))
+    else
+      nl = ni(index-1)
+      nc = ni(index)
+      nr = ni(index+1)
+      rl = (nr - nc*(1+eps)) / (nc*(1+eps) - nl)
+      phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+      gn = g_term * (nc + 0.5 * phi * (nc - nl))
+    end if
+
+  else
+    ! growth rate at boundary is in negative direction
+    
+    if (index==0) then
+      gn = g_term * (ni(1) + 0.5 * (ni(1) - ni(2)))
+    else if (index==m-1) then
+      gn = g_term * 0.5 * (ni(m)+ni(m-1))
+    else if (index==m) then
+      gn = 0.D0
+    else
+      nl = ni(index)
+      nc = ni(index+1)
+      nr = ni(index+2)
+      rl = (nl - nc*(1+eps)) / (nc*(1+eps) - nr)
+      phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+      gn = g_term * (nc + 0.5 * phi * (nc - nr))
+    end if
+  end if
+
+  f_droplet(index) = gn
+
+end do
+
+end subroutine flux_tvd
+
+!**********************************************************************************************
+
+
+
+!**********************************************************************************************
+
 subroutine growth_tvd(ni, index, type, growth_source)
 
 !**********************************************************************************************

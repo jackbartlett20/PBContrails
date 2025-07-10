@@ -337,8 +337,9 @@ ni_droplet_prime = 0.D0
 
 
 ! Particle growth
+call flux_tvd(ni_droplet_temp, 0) ! Updates fluxes based on current ni
 do index=1,m
-  call growth_tvd(ni_droplet_temp, index, 0, growth_source)
+  growth_source = (f_droplet(index-1) - f_droplet(index)) / dv(index)
   ni_droplet_prime(index) = ni_droplet_prime(index) + growth_source
 end do
 
@@ -440,22 +441,42 @@ double precision, dimension(m), intent(in)  :: kappa_temp
 double precision, dimension(m), intent(in)  :: ni_droplet_prime
 double precision, dimension(m), intent(out) :: kappa_prime
 
-double precision nkappa(m) ! total quantity of kappa
-double precision growth_source
+!double precision nkappa(m) ! total quantity of kappa
+double precision gnl, gnr
 
 integer index
+
+double precision eps
+parameter(eps = 1.D1*epsilon(1.D0))
 
 !----------------------------------------------------------------------------------------------
 
 kappa_prime = 0.D0
 
-nkappa = kappa_temp*ni_droplet
-
 ! Particle growth
+!call flux_tvd(ni_droplet, 0) ! Updates fluxes based on current ni
 do index=1,m
-  call growth_tvd(nkappa, index, 0, growth_source)
-  kappa_prime(index) = kappa_prime(index) + growth_source
+  if (f_droplet(index-1) > 0.D0) then
+    if (index==1) then ! For the case where there is a positive flux through left-most boundary
+      gnl = f_droplet(index-1)*kappa(index)
+    else
+      gnl = f_droplet(index-1)*kappa(index-1)
+    end if
+  else
+    gnl = f_droplet(index-1)*kappa(index)
+  end if
+  if (f_droplet(index) > 0.D0) then
+    gnr = f_droplet(index)*kappa(index)
+  else
+    if (index==m) then ! For the case where there is a negative flux through right-most boundary
+      gnr = f_droplet(index)*kappa(index)
+    else
+      gnr = f_droplet(index)*kappa(index+1)
+    end if
+  end if
+  kappa_prime(index) = kappa_prime(index) + (gnl - gnr) / dv(index)
 end do
+
 
 !Aggregation - make include correct birth/death rates of kappa
 if (agg_kernel>0) then
@@ -473,8 +494,17 @@ end if
 ! Change in ni_droplet
 kappa_prime = kappa_prime - kappa * ni_droplet_prime
 
+
+! Setting to zero if no droplets in interval
+do index=1,m
+  if (ni_droplet(index) == 0.D0) then
+    kappa_prime(index) = 0.D0
+  end if
+end do
+
 ! Scaling
-kappa_prime = kappa_prime/ni_droplet
+kappa_prime = kappa_prime/(ni_droplet+eps)
+
 
 end subroutine pbe_ydot_kappa
 
@@ -552,7 +582,7 @@ double precision, dimension(m), intent(in)  :: f_dry_temp
 double precision, dimension(m), intent(in)  :: ni_droplet_prime
 double precision, dimension(m), intent(out) :: f_dry_prime
 
-double precision growth_source
+double precision gnl, gnr
 
 integer index
 
@@ -561,29 +591,47 @@ integer index
 f_dry_prime = 0.D0
 
 ! Particle growth
-!do index=1,m
-!  call growth_tvd_f_dry(ni_droplet, f_dry_temp, index, growth_source)
-!  f_dry_prime(index) = f_dry_prime(index) + growth_source
-!end do
+!call flux_tvd(ni_droplet, 0) ! Updates fluxes based on current ni
+do index=1,m
+  if (f_droplet(index-1) > 0.D0) then
+    if (index==1) then ! For the case where there is a positive flux through left-most boundary
+      gnl = f_droplet(index-1)*f_dry(index)
+    else
+      gnl = f_droplet(index-1)*f_dry(index-1)*v_m(index-1)/v_m(index)
+    end if
+  else
+    gnl = f_droplet(index-1)*f_dry(index)
+  end if
+  if (f_droplet(index) > 0.D0) then
+    gnr = f_droplet(index)*f_dry(index)
+  else
+    if (index==m) then ! For the case where there is a negative flux through right-most boundary
+      gnr = f_droplet(index)*f_dry(index)
+    else
+      gnr = f_droplet(index)*f_dry(index+1)*v_m(index+1)/v_m(index)
+    end if
+  end if
+  f_dry_prime(index) = f_dry_prime(index) + (gnl - gnr) / dv(index)
+end do
 
 ! Add contribution to growth to interval 1 from outside spectrum
-!if (g_droplet(0) > 0.D0) then
-!  f_dry_prime(1) = f_dry_prime(1) + ni_droplet(1)*(-f_dry(1) * 0.5D0*g_droplet(0) / v_m(1))
-!end if
+if (g_droplet(0) > 0.D0) then
+  f_dry_prime(1) = f_dry_prime(1) + ni_droplet(1)*(-f_dry(1) * 0.5D0*(g_droplet(0)+g_droplet(1)) / v_m(1))
+end if
 
-do index=1,m
-  f_dry_prime(index) = -f_dry(index) * 0.5D0*(g_droplet(index-1)+g_droplet(index)) / v_m(index)
-end do
+!do index=1,m
+!  f_dry_prime(index) = -f_dry(index) * 0.5D0*(g_droplet(index-1)+g_droplet(index)) / v_m(index)
+!end do
 
 !Aggregation - make include correct birth/death rates of f_dry
 
 !Fragmentation
 
 ! Change in ni_droplet
-!f_dry_prime = f_dry_prime - f_dry * ni_droplet_prime
+f_dry_prime = f_dry_prime - f_dry * ni_droplet_prime
 
 ! Scaling
-!f_dry_prime = f_dry_prime/ni_droplet
+f_dry_prime = f_dry_prime/ni_droplet
 
 
 end subroutine pbe_ydot_f_dry
