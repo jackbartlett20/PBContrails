@@ -13,7 +13,7 @@
 !
 !> \brief This subroutine is to locate all the subsections during the coagulation 
 !> process for the finite volume scheme. The double array Dou_Array will save 
-!> the surface area 'Ajk' for eahc subsection combination and weighted point value 
+!> the surface area 'Ajk' for each subsection combination and weighted point value 
 !> x1 and x2. The integral array Int_Array will save the index number j, k, i for
 !> each subsection combination.
 
@@ -69,6 +69,7 @@ subroutine PBE_agg_fvLocate(x, CountStore)
   integer :: i              !< Id of the current cell
   integer :: j              !< Id of daughter cell 1 (= right boundary node id)
   integer :: k              !< Id of daughter cell 2 (= left boundary node id)
+  integer :: allocated_size_bytes
 
   ! Flags
   logical :: ifiMid         !< flag for judging if a daughter section larger than half of cell I
@@ -80,7 +81,17 @@ subroutine PBE_agg_fvLocate(x, CountStore)
   parameter (twoThird = 2.0d0 / 3.0d0)
 
   ! Initialization
-  if(CountStore == 2) then 
+  if(CountStore == 2) then
+    allocated_size_bytes = 8*N_AggSec*Ndou_AggSec + 4*N_AggSec*Nint_AggSec
+    if (allocated_size_bytes > 1000**3) then
+      write(*,*) "Allocating additional",(allocated_size_bytes/(1000**3))," GB to arrays."
+    else if (allocated_size_bytes > 1000**2) then
+      write(*,*) "Allocating additional",(allocated_size_bytes/(1000**2))," MB to arrays."
+    else if (allocated_size_bytes > 1000) then
+      write(*,*) "Allocating additional",(allocated_size_bytes/(1000))," kB to arrays."
+    else
+      write(*,*) "Allocating additional",(allocated_size_bytes)," bytes to arrays."
+    end if
     allocate(Dou_AggSec(N_AggSec * Ndou_AggSec))
     allocate(Int_AggSec(N_AggSec * Nint_AggSec))
   end if
@@ -688,10 +699,20 @@ subroutine PBE_agg_fvLocate(x, CountStore)
 
     end do
 
-  ! Save the total number of sbusection combinations
+  ! Save the total number of subsection combinations
   if(CountStore == 1) then
     N_AggSec = index_Sec
     ! allocate kernel arrays
+    allocated_size_bytes = 8*2*N_AggSec
+    if (allocated_size_bytes > 1000**3) then
+      write(*,*) "Allocating final",(allocated_size_bytes/(1000**3))," GB to arrays."
+    else if (allocated_size_bytes > 1000**2) then
+      write(*,*) "Allocating final",(allocated_size_bytes/(1000**2))," MB to arrays."
+    else if (allocated_size_bytes > 1000) then
+      write(*,*) "Allocating final",(allocated_size_bytes/(1000))," kB to arrays."
+    else
+      write(*,*) "Allocating final",(allocated_size_bytes)," bytes to arrays."
+    end if
     allocate(beta_AggSecOrig(N_AggSec)) 
     allocate(beta_AggSec(N_AggSec)) 
   end if
@@ -726,7 +747,7 @@ subroutine PBE_agg_beta(iflag)
       ! Retrieve all weighted J position, K position
       x1 = Dou_AggSec(preID_dou + ID_xj) 
       x2 = Dou_AggSec(preID_dou + ID_xk)
-      ! Calculate coagualtion kernel for each subsection combinations  
+      ! Calculate coagulation kernel for each subsection combinations  
       call agg_kernel_compute(x1, x2, b)
       beta_AggSecOrig(i) = b  
     end do

@@ -80,6 +80,7 @@ if (integ_success) then
   kappa = kappa + kappa_prime * dt
   !rho = rho + rho_prime * dt
   f_dry = f_dry + f_dry_prime * dt
+  write(*,*) "f_dry(3): ",f_dry(3)
   
   ! Adjust f_dry within tolerance
   do index=1,m
@@ -133,6 +134,7 @@ call pbe_ydot_crystal(ni_crystal,ni_crystal_prime)
 call pbe_ydot_kappa(kappa,ni_droplet_prime,kappa_prime)
 
 !call pbe_ydot_rho(rho,ni_droplet_prime,rho_prime)
+rho_prime = 0.D0
 
 call pbe_ydot_f_dry(f_dry,ni_droplet_prime,f_dry_prime)
 
@@ -447,7 +449,7 @@ double precision gnl, gnr
 integer index
 
 double precision eps
-parameter(eps = 1.D1*epsilon(1.D0))
+parameter(eps = 1.D1*tiny(1.D0))
 
 !----------------------------------------------------------------------------------------------
 
@@ -456,6 +458,7 @@ kappa_prime = 0.D0
 ! Particle growth
 !call flux_tvd(ni_droplet, 0) ! Updates fluxes based on current ni
 do index=1,m
+  ! Left boundary flux
   if (f_droplet(index-1) > 0.D0) then
     if (index==1) then ! For the case where there is a positive flux through left-most boundary
       gnl = f_droplet(index-1)*kappa(index)
@@ -465,6 +468,7 @@ do index=1,m
   else
     gnl = f_droplet(index-1)*kappa(index)
   end if
+  ! Right boundary flux
   if (f_droplet(index) > 0.D0) then
     gnr = f_droplet(index)*kappa(index)
   else
@@ -536,6 +540,9 @@ double precision growth_source
 
 integer index
 
+double precision eps
+parameter(eps = 1.D1*tiny(1.D0))
+
 !----------------------------------------------------------------------------------------------
 
 rho_prime = 0.D0
@@ -553,8 +560,15 @@ end do
 ! Change in ni_droplet
 rho_prime = rho_prime - rho * ni_droplet_prime
 
+! Setting to zero if no droplets in interval
+do index=1,m
+  if (ni_droplet(index) == 0.D0) then
+    rho_prime(index) = 0.D0
+  end if
+end do
+
 ! Scaling
-rho_prime = rho_prime/ni_droplet
+rho_prime = rho_prime/(ni_droplet+eps)
 
 end subroutine pbe_ydot_rho
 
@@ -586,6 +600,9 @@ double precision gnl, gnr
 
 integer index
 
+double precision eps
+parameter(eps = 1.D1*tiny(1.D0))
+
 !----------------------------------------------------------------------------------------------
 
 f_dry_prime = 0.D0
@@ -593,6 +610,7 @@ f_dry_prime = 0.D0
 ! Particle growth
 !call flux_tvd(ni_droplet, 0) ! Updates fluxes based on current ni
 do index=1,m
+  ! Left boundary flux
   if (f_droplet(index-1) > 0.D0) then
     if (index==1) then ! For the case where there is a positive flux through left-most boundary
       gnl = f_droplet(index-1)*f_dry(index)
@@ -602,6 +620,7 @@ do index=1,m
   else
     gnl = f_droplet(index-1)*f_dry(index)
   end if
+  ! Right boundary flux
   if (f_droplet(index) > 0.D0) then
     gnr = f_droplet(index)*f_dry(index)
   else
@@ -614,7 +633,7 @@ do index=1,m
   f_dry_prime(index) = f_dry_prime(index) + (gnl - gnr) / dv(index)
 end do
 
-! Add contribution to growth to interval 1 from outside spectrum
+! Add contribution to interval 1 from "outside spectrum"
 if (g_droplet(0) > 0.D0) then
   f_dry_prime(1) = f_dry_prime(1) + ni_droplet(1)*(-f_dry(1) * 0.5D0*(g_droplet(0)+g_droplet(1)) / v_m(1))
 end if
@@ -630,8 +649,15 @@ end if
 ! Change in ni_droplet
 f_dry_prime = f_dry_prime - f_dry * ni_droplet_prime
 
+! Setting to zero if no droplets in interval
+do index=1,m
+  if (ni_droplet(index) == 0.D0) then
+    f_dry_prime(index) = 0.D0
+  end if
+end do
+
 ! Scaling
-f_dry_prime = f_dry_prime/ni_droplet
+f_dry_prime = f_dry_prime/(ni_droplet+eps)
 
 
 end subroutine pbe_ydot_f_dry

@@ -26,18 +26,18 @@ implicit none
 double precision, dimension(m), intent(in) :: ni
 integer, intent(in)                        :: type ! 0=droplet, 1=crystal
 
-double precision :: g_term,phi
+double precision :: g_term            !< Growth rate at surface
 double precision :: gn                !< (G*N) at surface
 double precision :: nl                !< Number density in left cell
 double precision :: nc                !< Number density in this cell
 double precision :: nr                !< Number density in right cell
 double precision :: eps               !< Tolerance for upwind ratio (avoids div by zero)
-double precision :: rl,rr             !< r+ at left and right surface
-double precision :: r                 !< Radius at boundary
+double precision :: ur                !< upwind ratio at surface
+double precision :: phi               !< flux limiter
 
 integer index
 
-parameter(eps = 1.D1*epsilon(1.D0))
+parameter(eps = 1.D1*tiny(1.D0))
 
 !**********************************************************************************************
 
@@ -69,8 +69,8 @@ do index=0,m
       nl = ni(index-1)
       nc = ni(index)
       nr = ni(index+1)
-      rl = (nr - nc*(1+eps)) / (nc*(1+eps) - nl)
-      phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+      ur = (nr - nc + eps) / (nc - nl + eps)
+      phi = max(0.0d0, min(2.0d0 * ur, min((1.0d0 + 2.0d0 * ur) / 3.0d0, 2.0d0)))
       gn = g_term * (nc + 0.5 * phi * (nc - nl))
     end if
 
@@ -87,8 +87,8 @@ do index=0,m
       nl = ni(index)
       nc = ni(index+1)
       nr = ni(index+2)
-      rl = (nl - nc*(1+eps)) / (nc*(1+eps) - nr)
-      phi = max(0.0d0, min(2.0d0 * rl, min((1.0d0 + 2.0d0 * rl) / 3.0d0, 2.0d0)))
+      ur = (nl - nc + eps) / (nc - nr + eps)
+      phi = max(0.0d0, min(2.0d0 * ur, min((1.0d0 + 2.0d0 * ur) / 3.0d0, 2.0d0)))
       gn = g_term * (nc + 0.5 * phi * (nc - nr))
     end if
   end if
@@ -622,7 +622,7 @@ else
   raoult_term = (1.D0 - f_dry_i)/(1.D0 - (1.D0 - kappa_i)*f_dry_i)
 end if
 
-kelvin_term = exp((2.D0 * sigma_water * water_molar_mass)/(ideal_gas_constant*temperature*water_density*r))
+kelvin_term = exp((2.D0*sigma_water*water_molar_mass)/(ideal_gas_constant*temperature*water_density*r))
 
 S_droplet = raoult_term * kelvin_term
 
@@ -779,7 +779,7 @@ integer i
 courant_success = .true.
 dt_sugg = dt
 
-if (maxval(f_dry) > 0.999D0) then
+if ((maxval(f_dry) > 0.999D0).or.(minval(f_dry) < 0.001D0)) then
   do i=1,m
     if (ni_droplet(i).eq.0.D0) then ! Don't bother if there are no droplets there
       cycle

@@ -63,6 +63,7 @@ integer growth_function
 integer order_of_gq
 integer solver_pbe
 integer do_smoothing, smoothing_window, half_sm_win
+integer lowest_notfrozen_i
 
 ! Environment variables
 double precision temperature,T_exhaust,T_ambient
@@ -328,6 +329,8 @@ else
   write(*,*) "Smoothing window of size ",smoothing_window," not accepted. Stopping."
   stop
 end if
+
+lowest_notfrozen_i = m
 
 end subroutine pbe_init
 
@@ -677,7 +680,7 @@ saturation_i = Pvap/Psat_i
 air_density = P_ambient * air_molar_mass / (ideal_gas_constant * temperature)
 
 ! Mean free path of air (m) - assumes effective collision diameter 0.37 nm
-mfp_air = (boltzmann_constant*temperature)/(sqrt(2*pi)*(0.37D-9)**2*P_ambient)
+mfp_air = (boltzmann_constant*temperature)/(sqrt(2.D0)*pi*(0.37D-9)**2*P_ambient)
 
 ! H2O density
 !comp_densities(4) = 1.D3
@@ -689,7 +692,7 @@ n_sat = avogadro_constant * Pvap / (ideal_gas_constant * temperature)
 sigma_water = 235.8D-3 * (1-temperature/647.096D0)**(1.256D0) * (1.D0 - 0.625D0*(1-temperature/647.096D0))
 
 ! Thermal speed of water vapour (m s-1)
-vapour_thermal_speed = sqrt(8 * boltzmann_constant * temperature / (pi*water_molecular_mass))
+vapour_thermal_speed = sqrt(8.D0 * boltzmann_constant * temperature / (pi*water_molecular_mass))
 
 ! Diffusivity (m2 s-1) - Pruppacher and Klett eq. 13-3
 diffusivity = 2.11D-5 * (temperature/273.15D0)**(1.94D0) * (101325.D0 / P_ambient)
@@ -723,7 +726,7 @@ use pbe_mod
 
 implicit none
 
-double precision r
+double precision r, kappa_i, rho_i, f_dry_i
 integer index
 
 !----------------------------------------------------------------------------------------------
@@ -731,11 +734,23 @@ integer index
 do index=0,m
   ! Droplets
   r = ((3.D0*v(index))/(4.D0*pi))**(1.D0/3.D0)
+  !if (index==0) then
+  !  kappa_i = kappa(1)
+  !  rho_i = rho(1)
+  !  f_dry_i = f_dry(1)
   if (index==m) then
-    call calc_growth_rate_liquid(r, kappa(index), rho(index), f_dry(index), g_droplet(index))
+    kappa_i = kappa(m)
+    rho_i = rho(m)
+    f_dry_i = f_dry(m)
   else
-    call calc_growth_rate_liquid(r, kappa(index+1), rho(index+1), f_dry(index+1), g_droplet(index))
+    !kappa_i = 0.5D0 * (kappa(index) + kappa(index+1))
+    !rho_i = 0.5D0 * (rho(index) + rho(index+1))
+    !f_dry_i = 0.5D0 * (f_dry(index) + f_dry(index+1))
+    kappa_i = kappa(index+1)
+    rho_i = rho(index+1)
+    f_dry_i = f_dry(index+1)
   end if
+  call calc_growth_rate_liquid(r, kappa_i, rho_i, f_dry_i, g_droplet(index))
 
   ! Crystals
   call calc_growth_rate_crystal(index, g_crystal(index))
@@ -790,17 +805,27 @@ integer i, j
 
 ! Density
 
+! Fill in out of bounds intervals
 do i=1,half_sm_win
   rho_smooth(i) = rho(i)
-  rho_smooth(m+1-i) = rho(m+1-i)
+end do
+do i=lowest_notfrozen_i+1-half_sm_win,m
+  rho_smooth(i) = rho(i)
 end do
 
-do i=half_sm_win+1,m-half_sm_win
+! Smooth remaining intervals
+do i=half_sm_win+1,lowest_notfrozen_i-half_sm_win
+  ! Calculate smoothed value
   sum_savgol = 0.D0
   do j=-half_sm_win,half_sm_win
     sum_savgol = sum_savgol + savgol_coeffs(j) * rho(i+j)
   end do
-  rho_smooth(i) = sum_savgol
+  ! Check if still valid
+  if (sum_savgol.ge.0.D0) then
+    rho_smooth(i) = sum_savgol
+  else
+    rho_smooth(i) = rho(i)
+  end if
 end do
 
 rho = rho_smooth
@@ -808,17 +833,27 @@ rho = rho_smooth
 
 ! Dry fraction
 
+! Fill in out of bounds intervals
 do i=1,half_sm_win
   f_dry_smooth(i) = f_dry(i)
-  f_dry_smooth(m+1-i) = f_dry(m+1-i)
+end do
+do i=lowest_notfrozen_i+1-half_sm_win,m
+  f_dry_smooth(i) = f_dry(i)
 end do
 
-do i=half_sm_win+1,m-half_sm_win
+! Smooth remaining intervals
+do i=half_sm_win+1,lowest_notfrozen_i-half_sm_win
+  ! Calculate smoothed value
   sum_savgol = 0.D0
   do j=-half_sm_win,half_sm_win
     sum_savgol = sum_savgol + savgol_coeffs(j) * f_dry(i+j)
   end do
-  f_dry_smooth(i) = sum_savgol
+  ! Check if still valid
+  if ((sum_savgol.le.1.D0).and.(sum_savgol.ge.0.D0)) then
+    f_dry_smooth(i) = sum_savgol
+  else
+    f_dry_smooth(i) = f_dry(i)
+  end if
 end do
 
 f_dry = f_dry_smooth
@@ -864,6 +899,10 @@ do index=1,m
   if ((ice_germ_rate * v_m(index) * (1.D0 - f_dry(index)) * dt).ge.(1.D0)) then
     ni_crystal(index) = ni_crystal(index) + ni_droplet(index)
     ni_droplet(index) = 0.D0
+    kappa(index) = 0.D0
+    rho(index) = 0.D0
+    f_dry(index) = 0.D0
+    lowest_notfrozen_i = min(lowest_notfrozen_i, index-1)
   end if
 end do
 
@@ -1109,11 +1148,11 @@ else
   open(99,file='output/growth_rate.out',status='old',position='append')
 end if
 do i=0,m
-  write(99,1004) current_time, v(i), g_droplet(i), g_crystal(i)
+  write(99,1004) current_time, v(i), g_droplet(i), g_crystal(i), f_droplet(i)
 end do
 close(99)
 
-1004 format(4E20.10)
+1004 format(5E20.10)
 
 end subroutine pbe_output_growth
 
